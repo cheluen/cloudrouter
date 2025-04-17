@@ -1,6 +1,6 @@
 # OpenRouter API密钥管理器
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR_USERNAME/openrouter-apikey-manager)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter)
 
 这是一个部署在Cloudflare Workers上的OpenRouter API密钥管理器，它提供以下功能：
 
