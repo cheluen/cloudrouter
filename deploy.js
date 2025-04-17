@@ -50,49 +50,41 @@ async function main() {
   const wranglerPath = path.join(__dirname, 'wrangler.toml');
   let wranglerConfig = fs.readFileSync(wranglerPath, 'utf8');
 
-  // 检查是否已经有KV命名空间ID
-  const hasKvId = wranglerConfig.includes('id = "') && !wranglerConfig.includes('# id = "');
+  // 创建KV命名空间
+  log('正在创建新的KV命名空间...', colors.yellow);
 
-  if (!hasKvId) {
-    log('未找到KV命名空间ID，将创建新的KV命名空间...', colors.yellow);
+  // 创建KV命名空间
+  const createKvOutput = exec('wrangler kv:namespace create API_KEYS');
 
-    // 创建KV命名空间
-    const createKvOutput = exec('wrangler kv:namespace create API_KEYS');
-    
-    if (!createKvOutput) {
-      log('创建KV命名空间失败，请检查您的Cloudflare账户权限', colors.red);
-      process.exit(1);
-    }
-
+  if (!createKvOutput) {
+    log('创建KV命名空间失败，将使用默认配置继续部署', colors.yellow);
+  } else {
     // 从输出中提取KV命名空间ID
     const kvIdMatch = createKvOutput.match(/id = "([^"]+)"/);
-    if (!kvIdMatch) {
-      log('无法从输出中提取KV命名空间ID', colors.red);
-      process.exit(1);
+    if (kvIdMatch) {
+      const kvId = kvIdMatch[1];
+      log(`成功创建KV命名空间，ID: ${kvId}`, colors.green);
+
+      // 更新wrangler.toml中的ID
+      wranglerConfig = wranglerConfig.replace(/id = "[^"]*"/, `id = "${kvId}"`);
+      fs.writeFileSync(wranglerPath, wranglerConfig);
+      log('已更新wrangler.toml文件', colors.green);
+    } else {
+      log('无法从输出中提取KV命名空间ID，将使用默认配置继续部署', colors.yellow);
     }
-
-    const kvId = kvIdMatch[1];
-    log(`成功创建KV命名空间，ID: ${kvId}`, colors.green);
-
-    // 更新wrangler.toml
-    wranglerConfig = wranglerConfig.replace('# id = "your-kv-namespace-id"', `id = "${kvId}"`);
-    fs.writeFileSync(wranglerPath, wranglerConfig);
-    log('已更新wrangler.toml文件', colors.green);
-  } else {
-    log('已找到KV命名空间ID，将使用现有的KV命名空间', colors.green);
   }
 
   // 部署到Cloudflare Workers
   log('正在部署到Cloudflare Workers...', colors.cyan);
   const deployOutput = exec('wrangler deploy');
-  
+
   if (!deployOutput) {
     log('部署失败，请检查错误信息', colors.red);
     process.exit(1);
   }
 
   log('部署成功！', colors.green);
-  
+
   // 提取部署URL
   const urlMatch = deployOutput.match(/https:\/\/[^"\s]+\.workers\.dev/);
   if (urlMatch) {

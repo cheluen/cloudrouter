@@ -44,13 +44,15 @@
 
 #### 使用现有的KV命名空间
 
-如果您已经有一个KV命名空间，可以在 `wrangler.toml` 文件中取消注释并添加您的KV命名空间ID：
+如果您已经有一个KV命名空间，可以在 `wrangler.toml` 文件中更新您的KV命名空间ID：
 
 ```toml
-[[kv_namespaces]]
-binding = "API_KEYS"
-id = "your-kv-namespace-id"
+kv_namespaces = [
+  { binding = "API_KEYS", id = "your-kv-namespace-id" }
+]
 ```
+
+注意：部署脚本会尝试创建新的KV命名空间，如果成功，将会替换上面的ID。如果您想保留现有的KV命名空间，请使用 `npm run deploy:direct` 命令直接部署。
 
 ## 使用方法
 

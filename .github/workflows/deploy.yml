@@ -25,6 +25,11 @@ jobs:
         run: npm install
 
       - name: Deploy to Cloudflare Workers
-        run: node deploy.js
+        run: |
+          # 尝试使用部署脚本
+          node deploy.js || (
+            echo "脚本部署失败，尝试直接部署" &&
+            npx wrangler deploy
+          )
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
