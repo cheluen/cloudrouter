@@ -1,0 +1,17 @@
+name = "openrouter-apikey-manager"
+main = "index.js"
+compatibility_date = "2023-10-30"
+
+# KV命名空间配置
+kv_namespaces = [
+  { binding = "API_KEYS", id = "API_KEYS_ID", preview_id = "API_KEYS_PREVIEW_ID" }
+]
+
+# 路由配置（如果你有自定义域名）
+# routes = [
+#   { pattern = "your-domain.com/*", zone_name = "your-domain.com" }
+# ]
+
+# 触发器配置
+[triggers]
+crons = []
