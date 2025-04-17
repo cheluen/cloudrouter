@@ -4,7 +4,7 @@ compatibility_date = "2023-10-30"
 
 # KV命名空间配置
 kv_namespaces = [
-  { binding = "API_KEYS", id = "API_KEYS_ID", preview_id = "API_KEYS_PREVIEW_ID" }
+  { binding = "API_KEYS", id = "520b2608cfea435eae13798fd7c92215" }
 ]
 
 # 路由配置（如果你有自定义域名）

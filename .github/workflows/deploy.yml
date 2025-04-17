@@ -19,35 +19,12 @@ jobs:
           node-version: '18'
       
       - name: Install Wrangler
-        run: npm install -g wrangler
+        run: npm install -g wrangler@4
       
-      - name: Create KV Namespace if not exists
+      - name: Use existing KV Namespace
         run: |
-          # 检查KV命名空间是否存在，如果不存在则创建
-          KV_NAMESPACE_ID=$(wrangler kv:namespace list | grep API_KEYS | awk '{print $1}' || echo "")
-          if [ -z "$KV_NAMESPACE_ID" ]; then
-            echo "Creating KV namespace API_KEYS..."
-            KV_NAMESPACE_ID=$(wrangler kv:namespace create API_KEYS | grep -oP 'id = "\K[^"]+')
-            echo "Created KV namespace with ID: $KV_NAMESPACE_ID"
-            
-            # 更新wrangler.toml文件
-            sed -i "s/API_KEYS_ID/$KV_NAMESPACE_ID/g" wrangler.toml
-            
-            # 创建预览环境的KV命名空间
-            PREVIEW_ID=$(wrangler kv:namespace create API_KEYS --preview | grep -oP 'id = "\K[^"]+')
-            sed -i "s/API_KEYS_PREVIEW_ID/$PREVIEW_ID/g" wrangler.toml
-          else
-            echo "KV namespace API_KEYS already exists with ID: $KV_NAMESPACE_ID"
-            # 更新wrangler.toml文件
-            sed -i "s/API_KEYS_ID/$KV_NAMESPACE_ID/g" wrangler.toml
-            
-            # 获取预览环境的KV命名空间ID
-            PREVIEW_ID=$(wrangler kv:namespace list --preview | grep API_KEYS | awk '{print $1}' || echo "")
-            if [ -z "$PREVIEW_ID" ]; then
-              PREVIEW_ID=$(wrangler kv:namespace create API_KEYS --preview | grep -oP 'id = "\K[^"]+')
-            fi
-            sed -i "s/API_KEYS_PREVIEW_ID/$PREVIEW_ID/g" wrangler.toml
-          fi
+          # 使用wrangler.toml中已配置的KV命名空间ID
+          echo "Using KV namespace ID from wrangler.toml"
       
       - name: Deploy to Cloudflare Workers
         run: wrangler deploy

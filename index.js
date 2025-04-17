@@ -120,6 +120,9 @@ Authorization: Bearer your-custom-key</code></pre>
       {
         headers: {
           'Content-Type': 'text/html;charset=UTF-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
       }
     );
@@ -134,8 +137,8 @@ function handleCORS() {
   return new Response(null, {
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
       'Access-Control-Max-Age': '86400',
     },
   });
@@ -222,6 +225,27 @@ function serveAdminPage(isFirstTime) {
         </div>
 
         <script>
+          // 调试函数
+          function debugFetch(url, options) {
+            console.log('Fetch request:', { url, options });
+            return fetch(url, options)
+              .then(response => {
+                console.log('Fetch response status:', response.status);
+                return response.clone().text().then(text => {
+                  try {
+                    console.log('Fetch response body:', JSON.parse(text));
+                  } catch (e) {
+                    console.log('Fetch response body (text):', text);
+                  }
+                  return response;
+                });
+              })
+              .catch(error => {
+                console.error('Fetch error:', error);
+                throw error;
+              });
+          }
+
           // 切换标签页
           function openTab(evt, tabName) {
             var i, tabcontent, tablinks;
@@ -247,7 +271,7 @@ function serveAdminPage(isFirstTime) {
             }
 
             try {
-              const response = await fetch('/manage-keys', {
+              const response = await debugFetch('/manage-keys', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -286,7 +310,7 @@ function serveAdminPage(isFirstTime) {
             }
 
             try {
-              const response = await fetch('/manage-keys', {
+              const response = await debugFetch('/manage-keys', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -333,7 +357,7 @@ function serveAdminPage(isFirstTime) {
               const urlParams = new URLSearchParams(window.location.search);
               const accessToken = urlParams.get('access_token');
 
-              const response = await fetch('/manage-keys', {
+              const response = await debugFetch('/manage-keys', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -363,7 +387,7 @@ function serveAdminPage(isFirstTime) {
               const adminPassword = prompt('请输入管理密码以查看统计数据');
               if (!adminPassword) return;
 
-              const response = await fetch('/manage-keys', {
+              const response = await debugFetch('/manage-keys', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -415,6 +439,9 @@ function serveAdminPage(isFirstTime) {
     {
       headers: {
         'Content-Type': 'text/html;charset=UTF-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       },
     }
   );
@@ -814,8 +841,9 @@ function jsonResponse(data, status = 200) {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
   });
 }
