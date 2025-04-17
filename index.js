@@ -8,7 +8,7 @@
 
 // 配置
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_MODEL = 'google/gemini-2.5-pro-exp-03-25:free';
+const DEFAULT_MODEL = 'deepseek/deepseek-chat-v3-0324:free';
 
 // 安全配置
 const ACCESS_TOKEN_PARAM = 'access_token'; // URL参数名称，用于访问管理页面
