@@ -18,6 +18,12 @@
 
 这种方式会自动配置所需的KV命名空间和环境变量。
 
+如果您想在部署前自定义配置，可以：
+
+1. 先Fork这个仓库到您的GitHub账户
+2. 修改 `config.js` 文件中的配置项
+3. 使用您自己的仓库URL替换部署按钮的链接
+
 ### 方式二：从自己的GitHub仓库部署
 
 1. Fork这个仓库到您的GitHub账户
@@ -27,21 +33,24 @@
 
 ### 方式三：手动部署
 
-1. 登录到 [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. 进入 Workers & Pages
-3. 点击 "创建应用程序"
-4. 选择 "创建Worker"
-5. 在编辑器中，删除默认代码，粘贴 `index.js` 中的全部代码
-6. 点击 "保存并部署"
+1. 克隆或下载这个仓库
+2. 如果需要，修改 `config.js` 文件中的配置
+3. 安装依赖项：`npm install`
+4. 安装Wrangler：`npm install -g wrangler`
+5. 登录到Cloudflare：`wrangler login`
+6. 运行部署脚本：`npm run deploy`
 
-#### 手动配置KV存储
+部署脚本会自动创建KV命名空间并部署应用。
 
-1. 在Worker详情页面，点击 "设置" 选项卡
-2. 找到 "变量" 部分，点击 "KV命名空间绑定"
-3. 点击 "添加绑定"
-4. 变量名设置为 `API_KEYS`
-5. 选择一个已有的KV命名空间，或创建一个新的
-6. 点击 "保存"
+#### 使用现有的KV命名空间
+
+如果您已经有一个KV命名空间，可以在 `wrangler.toml` 文件中取消注释并添加您的KV命名空间ID：
+
+```toml
+[[kv_namespaces]]
+binding = "API_KEYS"
+id = "your-kv-namespace-id"
+```
 
 ## 使用方法
 
@@ -108,13 +117,16 @@ console.log(models);
 3. 如果所有密钥都用尽配额，服务将返回429错误
 4. 为了安全起见，请设置一个强密码和复杂的访问令牌
 
-## 自定义
+## 自定义配置
 
-您可以根据需要修改以下配置：
+所有配置项都集中在 `config.js` 文件中，您可以根据需要修改以下配置：
 
-1. 默认模型：修改 `DEFAULT_MODEL` 常量
-2. OpenRouter API URL：修改 `OPENROUTER_API_URL` 常量
+1. 默认模型：修改 `DEFAULT_MODEL` 属性
+2. OpenRouter API URL：修改 `OPENROUTER_API_URL` 属性
 3. 错误消息：修改 `ERROR_MESSAGES` 对象
+4. 界面配置：修改 `UI` 对象
+
+修改配置后，重新部署应用即可生效。
 
 ## 限制
 

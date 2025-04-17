@@ -4,7 +4,8 @@
   "description": "OpenRouter API密钥管理器，提供OpenAI兼容的API端点，自动轮询多个OpenRouter API密钥",
   "main": "index.js",
   "scripts": {
-    "deploy": "wrangler deploy",
+    "deploy": "node deploy.js",
+    "deploy:direct": "wrangler deploy",
     "dev": "wrangler dev"
   },
   "keywords": [

@@ -12,21 +12,19 @@ jobs:
     name: Deploy
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-      
+
       - name: Install Wrangler
         run: npm install -g wrangler@4
-      
-      - name: Use existing KV Namespace
-        run: |
-          # 使用wrangler.toml中已配置的KV命名空间ID
-          echo "Using KV namespace ID from wrangler.toml"
-      
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Deploy to Cloudflare Workers
-        run: wrangler deploy
+        run: node deploy.js
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

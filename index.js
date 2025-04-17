@@ -6,20 +6,12 @@
 // 使用Cloudflare KV存储API密钥
 // 在Cloudflare Dashboard中创建一个名为API_KEYS的KV命名空间
 
-// 配置
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_MODEL = 'deepseek/deepseek-chat-v3-0324:free';
+// 导入配置
+import CONFIG from './config.js';
 
-// 安全配置
-const ACCESS_TOKEN_PARAM = 'access_token'; // URL参数名称，用于访问管理页面
-
-// 错误消息
-const ERROR_MESSAGES = {
-  NO_API_KEYS: '没有可用的API密钥',
-  QUOTA_EXCEEDED: '配额已用尽',
-  INVALID_REQUEST: '无效的请求',
-  INTERNAL_ERROR: '内部服务器错误'
-};
+// 声明KV命名空间绑定
+// 这个变量会在Cloudflare Workers环境中自动绑定到KV命名空间
+/* global API_KEYS */
 
 // 处理请求
 async function handleRequest(request) {
@@ -50,7 +42,7 @@ async function handleRequest(request) {
   if (path === '/admin' && request.method === 'GET') {
     // 验证访问令牌
     const params = url.searchParams;
-    const accessToken = params.get(ACCESS_TOKEN_PARAM);
+    const accessToken = params.get(CONFIG.ACCESS_TOKEN_PARAM);
     const storedAccessToken = await API_KEYS.get('access_token');
 
     // 如果没有设置访问令牌，允许首次访问以设置令牌
@@ -72,7 +64,7 @@ async function handleRequest(request) {
       `<!DOCTYPE html>
       <html>
         <head>
-          <title>OpenRouter API密钥管理器</title>
+          <title>${CONFIG.UI.TITLE}</title>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
@@ -84,17 +76,17 @@ async function handleRequest(request) {
           </style>
         </head>
         <body>
-          <h1>OpenRouter API密钥管理器</h1>
+          <h1>${CONFIG.UI.TITLE}</h1>
           <div class="container">
             <h2>服务说明</h2>
-            <p>这是一个OpenRouter API密钥管理服务，提供以下功能：</p>
+            <p>${CONFIG.UI.DESCRIPTION}，提供以下功能：</p>
             <ul>
               <li>存储多个OpenRouter API密钥</li>
               <li>提供OpenAI兼容的API端点</li>
               <li>自动轮询使用API密钥，当一个密钥用尽额度时自动切换到下一个</li>
             </ul>
             <p>管理页面受到保护，需要访问令牌才能访问。请使用以下链接访问管理页面：</p>
-            <p><code>/admin?access_token=您的访问令牌</code></p>
+            <p><code>/admin?${CONFIG.ACCESS_TOKEN_PARAM}=您的访问令牌</code></p>
             <p>如果您是首次使用，请直接访问 <a href="/admin">/admin</a> 页面设置访问令牌。</p>
           </div>
 
@@ -150,7 +142,7 @@ function serveAdminPage(isFirstTime) {
     `<!DOCTYPE html>
     <html>
       <head>
-        <title>OpenRouter API密钥管理器 - 管理页面</title>
+        <title>${CONFIG.UI.TITLE} - 管理页面</title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
@@ -172,7 +164,7 @@ function serveAdminPage(isFirstTime) {
         </style>
       </head>
       <body>
-        <h1>OpenRouter API密钥管理器</h1>
+        <h1>${CONFIG.UI.TITLE}</h1>
 
         ${isFirstTime ? `
         <div class="container">
@@ -561,7 +553,7 @@ async function handleChatCompletions(request) {
     // 获取API密钥
     const apiKeys = await getApiKeys();
     if (!apiKeys || apiKeys.length === 0) {
-      return jsonResponse({ error: ERROR_MESSAGES.NO_API_KEYS }, 500);
+      return jsonResponse({ error: CONFIG.ERROR_MESSAGES.NO_API_KEYS }, 500);
     }
 
     // 获取当前使用的密钥索引
@@ -579,7 +571,7 @@ async function handleChatCompletions(request) {
     const openRouterRequest = createOpenRouterRequest(requestData, apiKeys[currentKeyIndex]);
 
     // 发送请求到OpenRouter
-    const response = await fetch(`${OPENROUTER_API_URL}/chat/completions`, openRouterRequest);
+    const response = await fetch(`${CONFIG.OPENROUTER_API_URL}/chat/completions`, openRouterRequest);
     const responseData = await response.json();
 
     // 检查是否有错误
@@ -599,12 +591,12 @@ async function handleChatCompletions(request) {
 
         // 如果所有密钥都已用尽，返回错误
         if (nextKeyIndex === -1) {
-          return jsonResponse({ error: ERROR_MESSAGES.QUOTA_EXCEEDED }, 429);
+          return jsonResponse({ error: CONFIG.ERROR_MESSAGES.QUOTA_EXCEEDED }, 429);
         }
 
         // 使用新密钥重试请求
         const retryRequest = createOpenRouterRequest(requestData, apiKeys[nextKeyIndex]);
-        const retryResponse = await fetch(`${OPENROUTER_API_URL}/chat/completions`, retryRequest);
+        const retryResponse = await fetch(`${CONFIG.OPENROUTER_API_URL}/chat/completions`, retryRequest);
 
         if (!retryResponse.ok) {
           return jsonResponse(await retryResponse.json(), retryResponse.status);
@@ -625,7 +617,7 @@ async function handleChatCompletions(request) {
     // 返回成功响应
     return jsonResponse(responseData);
   } catch (error) {
-    return jsonResponse({ error: ERROR_MESSAGES.INTERNAL_ERROR + ': ' + error.message }, 500);
+    return jsonResponse({ error: CONFIG.ERROR_MESSAGES.INTERNAL_ERROR + ': ' + error.message }, 500);
   }
 }
 
@@ -635,7 +627,7 @@ async function handleModels(request) {
     // 获取API密钥
     const apiKeys = await getApiKeys();
     if (!apiKeys || apiKeys.length === 0) {
-      return jsonResponse({ error: ERROR_MESSAGES.NO_API_KEYS }, 500);
+      return jsonResponse({ error: CONFIG.ERROR_MESSAGES.NO_API_KEYS }, 500);
     }
 
     // 获取当前使用的密钥索引
@@ -655,7 +647,7 @@ async function handleModels(request) {
     };
 
     // 发送请求到OpenRouter
-    const response = await fetch(`${OPENROUTER_API_URL}/models`, openRouterRequest);
+    const response = await fetch(`${CONFIG.OPENROUTER_API_URL}/models`, openRouterRequest);
 
     if (!response.ok) {
       const responseData = await response.json();
@@ -675,12 +667,12 @@ async function handleModels(request) {
 
         // 如果所有密钥都已用尽，返回错误
         if (nextKeyIndex === -1) {
-          return jsonResponse({ error: ERROR_MESSAGES.QUOTA_EXCEEDED }, 429);
+          return jsonResponse({ error: CONFIG.ERROR_MESSAGES.QUOTA_EXCEEDED }, 429);
         }
 
         // 使用新密钥重试请求
         openRouterRequest.headers.Authorization = `Bearer ${apiKeys[nextKeyIndex]}`;
-        const retryResponse = await fetch(`${OPENROUTER_API_URL}/models`, openRouterRequest);
+        const retryResponse = await fetch(`${CONFIG.OPENROUTER_API_URL}/models`, openRouterRequest);
 
         if (!retryResponse.ok) {
           return jsonResponse(await retryResponse.json(), retryResponse.status);
@@ -698,7 +690,7 @@ async function handleModels(request) {
     const models = await response.json();
     return jsonResponse(formatModelsResponse(models));
   } catch (error) {
-    return jsonResponse({ error: ERROR_MESSAGES.INTERNAL_ERROR + ': ' + error.message }, 500);
+    return jsonResponse({ error: CONFIG.ERROR_MESSAGES.INTERNAL_ERROR + ': ' + error.message }, 500);
   }
 }
 
@@ -709,7 +701,7 @@ function createOpenRouterRequest(requestData, apiKey) {
 
   // 如果没有指定模型，使用默认模型
   if (!openRouterData.model) {
-    openRouterData.model = DEFAULT_MODEL;
+    openRouterData.model = CONFIG.DEFAULT_MODEL;
   }
 
   return {
