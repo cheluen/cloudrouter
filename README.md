@@ -1,254 +1,196 @@
 # OpenRouter API密钥管理器
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter&worker=true)
+这是一个部署在 Cloudflare Workers 上的 OpenRouter API 密钥管理器，它提供以下功能：
 
-这是一个部署在Cloudflare Workers上的OpenRouter API密钥管理器，它提供以下功能：
+1.  存储多个 OpenRouter API 密钥
+2.  提供一个与 OpenAI 兼容的 API 端点
+3.  自动轮询使用 API 密钥，当一个密钥用尽额度时自动切换到下一个
 
-1. 存储多个OpenRouter API密钥
-2. 提供一个与OpenAI兼容的API端点
-3. 自动轮询使用API密钥，当一个密钥用尽额度时自动切换到下一个
+本项目可以帮助您管理多个 OpenRouter API 密钥，通过轮询机制最大化利用每个密钥的配额，同时提供统一的 API 接口，兼容 OpenAI 客户端。
 
-## 部署方式
+## 部署方法
 
-### 方式一：一键部署（推荐）
+本项目支持两种部署方式：通过 Cloudflare Dashboard 网页部署或使用命令行工具部署。
 
-1. 点击上方的 "Deploy to Cloudflare Workers" 按钮
-2. 登录您的Cloudflare账户
-3. 在部署过程中，您可以设置以下环境变量（强烈建议）：
-   - `PRESET_ACCESS_TOKEN`：您的访问令牌（至少8个字符）
-   - `PRESET_ADMIN_PASSWORD`：您的管理密码
-   - `PRESET_API_KEYS`：您的OpenRouter API密钥，多个密钥用逗号分隔
-4. 完成部署后，请确保KV命名空间正确绑定（详见"部署常见问题"部分）
+### 方式一：使用 Cloudflare Dashboard 部署
 
-这种方式会自动创建KV命名空间，并允许您在部署过程中设置环境变量。设置环境变量后，您可以直接使用应用，无需再通过网页界面设置。
+推荐使用 Cloudflare 的 Git 集成功能进行部署：
 
-#### 部署前准备
+1. **准备工作**
+   * 将此仓库 Fork 到你的 GitHub/GitLab 账户
+   * 登录到 [Cloudflare Dashboard](https://dash.cloudflare.com/)
 
-在使用一键部署前，您需要：
+2. **创建项目**
+   * 导航到 Workers & Pages 部分
+   * 点击 "Create application" -> "Connect Git"
+   * 选择你 Fork 的仓库并授权
+   * 按照向导完成项目创建
+   * 点击 "Save and Deploy" 开始部署
 
-1. 拥有一个Cloudflare账户
-2. 在Cloudflare中启用Workers服务
-3. 确保您有权限创建Workers和KV命名空间
+### 方式二：使用命令行部署
 
-#### 预设值配置
+如果你喜欢使用命令行工具，可以按照以下步骤操作：
 
-您可以在部署时预先设置访问令牌、管理密码和API密钥，这样在部署完成后就可以直接使用，无需再通过网页设置。
+1. **安装依赖**
+   ```bash
+   npm install
+   ```
 
-如果您使用方式三（手动部署），可以在运行部署脚本时设置这些预设值。脚本会询问您是否要设置预设值，如果选择是，将引导您输入这些值。
+2. **使用部署脚本**
+   ```bash
+   npm run deploy
+   ```
+   或者直接使用 Wrangler：
+   ```bash
+   npm run deploy:direct
+   ```
 
-如果您使用方式一或方式二，可以在Fork仓库后直接修改`wrangler.toml`文件中的以下值：
+## 部署后配置
 
-```toml
-# 预设的访问令牌和管理密码
-PRESET_ACCESS_TOKEN = "您的访问令牌" # 至少8个字符
-PRESET_ADMIN_PASSWORD = "您的管理密码"
-PRESET_API_KEYS = "您的API密钥,可以有多个,用逗号分隔"
-```
+无论使用哪种部署方式，你都需要完成以下关键配置步骤，确保 Worker 正常运行。
 
-#### 自定义配置
+### 必要配置：KV 命名空间绑定
 
-如果您想在部署前自定义配置，可以：
+1. **找到 KV 命名空间的绑定名称**
+   * 在 Cloudflare Dashboard 中进入你的 Worker 项目
+   * 点击 "Settings" -> "Variables"
+   * 在 "KV Namespace Bindings" 部分找到自动创建的 KV 命名空间
+   * 记下其绑定名称 (Binding Name)，可能是类似 `KV_NAMESPACE_BINDING` 的名称
 
-1. 先Fork这个仓库到您的GitHub账户
-2. 修改 `config.js` 文件中的配置项
-3. 使用您自己的仓库URL替换部署按钮的链接
+2. **设置 KV_BINDING_NAME Secret**
+   * 在同一页面的 "Environment Variables & Secrets" 部分
+   * 点击 "Add Secret"
+   * 名称输入：`KV_BINDING_NAME`
+   * 值输入：你在上一步找到的绑定名称
+   * 点击 "Save" 保存
 
-#### 部署常见问题
+### 可选配置：预设值
 
-1. **KV命名空间绑定问题**：一键部署时，系统会自动创建一个KV命名空间，但可能不会正确绑定到变量名 `API_KEYS`。部署后，请在Cloudflare Dashboard中进入您的Worker设置，在 "Settings" > "Variables" > "KV Namespace Bindings" 中添加一个绑定，将变量名设置为 `API_KEYS`，并选择刚刚创建的KV命名空间。
+为了简化初始设置，你可以添加以下 Secrets：
 
-2. **显示 "There is nothing here yet"**：如果部署后访问您的Worker URL显示此错误，请检查KV命名空间绑定是否正确。确保在Cloudflare Dashboard中将KV命名空间绑定到变量名 `API_KEYS`。
+* `PRESET_ACCESS_TOKEN`: 初始访问令牌 (至少 8 字符)
+* `PRESET_ADMIN_PASSWORD`: 初始管理密码
+* `PRESET_API_KEYS`: 初始 API 密钥，多个密钥用英文逗号分隔 (e.g., `sk-abc,sk-def`)
 
-3. **按钮无响应**：如果部署后管理页面中的按钮无响应，请检查浏览器控制台是否有错误信息。如果有，可能是由于JavaScript代码出错或者浏览器兼容性问题导致的。
+如果设置了这些预设值，在首次访问 `/admin` 时会自动应用这些设置。
 
-4. **部署失败**：如果部署失败，请检查是否有权限创建Workers和KV命名空间，以及是否超过了免费计划的限制。
+### 首次访问设置
 
-### 方式二：从自己的GitHub仓库部署
+如果没有设置预设值，需要手动进行初始设置：
 
-1. Fork这个仓库到您的GitHub账户
-2. 在您的Cloudflare账户中创建一个API令牌（在"我的个人资料 > API令牌"中创建）
-3. 在您的GitHub仓库中添加一个名为`CLOUDFLARE_API_TOKEN`的密钥，值为您创建的API令牌
-4. 推送代码到main分支，或手动触发GitHub Actions工作流
-
-### 方式三：手动部署
-
-1. 克隆或下载这个仓库
-2. 如果需要，修改 `config.js` 文件中的配置
-3. 安装依赖项：`npm install`
-4. 安装Wrangler：`npm install -g wrangler`
-5. 登录到Cloudflare：`wrangler login`
-6. 运行部署脚本：`npm run deploy`
-
-部署脚本会自动创建KV命名空间并部署应用。
-
-#### 使用现有的KV命名空间
-
-如果您已经有一个KV命名空间，可以在 `wrangler.toml` 文件中更新您的KV命名空间ID：
-
-```toml
-kv_namespaces = [
-  { binding = "API_KEYS", id = "your-kv-namespace-id" }
-]
-```
-
-注意：部署脚本会尝试创建新的KV命名空间，如果成功，将会替换上面的ID。如果您想保留现有的KV命名空间，请使用 `npm run deploy:direct` 命令直接部署。
+1. 访问你的 Worker URL 的 `/admin` 路径
+2. 按照页面提示设置访问令牌、管理密码和 API 密钥
 
 ## 使用方法
 
-### 首次设置
+### 管理页面
 
-1. 访问您的Worker URL（例如：`https://your-worker.your-username.workers.dev/`）
-2. 点击首页上的管理页面链接（`/admin`）
-3. 设置访问令牌（至少8个字符）来保护您的管理页面
-4. 保存后，您将被重定向到带有访问令牌的管理页面
+管理页面位于 `/admin` 路径，需要使用访问令牌访问：
 
-### 添加API密钥
-
-1. 使用访问令牌访问管理页面（例如：`https://your-worker.your-username.workers.dev/admin?access_token=您的访问令牌`）
-2. 在密钥管理标签页中，输入您的OpenRouter API密钥，每行一个
-3. 设置一个管理密码（用于保护您的API密钥）
-4. 点击 "保存密钥"
-
-### 使用API
-
-您可以像使用OpenAI API一样使用此服务：
-
-```javascript
-const response = await fetch('https://your-worker.your-username.workers.dev/v1/chat/completions', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer your-custom-key' // 这里可以使用任何值，因为验证是在OpenRouter端进行的
-  },
-  body: JSON.stringify({
-    model: 'deepseek/deepseek-chat-v3-0324:free', // 可选，默认使用deepseek-chat-v3
-    messages: [
-      { role: 'user', content: '你好，请介绍一下自己' }
-    ]
-  })
-});
-
-const data = await response.json();
-console.log(data);
+```
+https://your-worker-url/admin?access_token=您的访问令牌
 ```
 
-### 获取可用模型
+管理页面提供三个主要功能区：
+
+1. **密钥管理**
+   * 添加、删除或更新 OpenRouter API 密钥
+   * 每行输入一个密钥
+   * 需要输入管理密码才能保存更改
+
+2. **使用统计**
+   * 查看各个密钥的使用情况和错误计数
+   * 需要输入管理密码才能查看
+
+3. **设置**
+   * 更改访问令牌
+   * 需要输入当前管理密码才能更改
+
+### 使用 API
+
+将请求指向你的 Worker URL：
+
+* **聊天完成**: `POST https://your-worker-url/v1/chat/completions`
+* **模型列表**: `GET https://your-worker-url/v1/models`
+
+**请求示例:**
 
 ```javascript
-const response = await fetch('https://your-worker.your-username.workers.dev/v1/models', {
-  headers: {
-    'Authorization': 'Bearer your-custom-key'
-  }
-});
+const workerUrl = 'https://your-worker-url'; // 替换为您的 Worker URL
 
-const models = await response.json();
-console.log(models);
+// 获取模型列表
+async function getModels() {
+  const response = await fetch(`${workerUrl}/v1/models`, {
+    headers: {
+      'Authorization': 'Bearer your-custom-key' // Bearer token 可以是任意值
+    }
+  });
+  const models = await response.json();
+  console.log(models);
+}
+
+// 发送聊天请求
+async function chat() {
+  const response = await fetch(`${workerUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer your-custom-key' // Bearer token 可以是任意值
+    },
+    body: JSON.stringify({
+      model: 'deepseek/deepseek-chat-v3-0324:free', // 可选，默认使用 config.js 中的 DEFAULT_MODEL
+      messages: [
+        { role: 'user', content: '你好，请介绍一下自己' }
+      ]
+    })
+  });
+  const data = await response.json();
+  console.log(data);
+}
+
+getModels();
+chat();
 ```
 
 ## 安全特性
 
-1. **访问令牌保护**：管理页面受访问令牌保护，防止未授权访问
-2. **管理密码**：需要管理密码才能修改API密钥或查看统计数据
-3. **密钥隐藏**：在统计页面中只显示密钥的部分内容，保护完整密钥
+1. **访问令牌保护**: 管理页面 (`/admin`) 受访问令牌保护。
+2. **管理密码**: 修改 API 密钥、查看统计数据、更改访问令牌需要管理密码。
+3. **密钥隐藏**: 在统计页面中只显示密钥的部分内容。
 
 ## 注意事项
 
-1. 此服务使用Cloudflare Workers的KV存储来保存API密钥，免费计划有一定的限制
-2. 当一个API密钥的配额用尽时，服务会自动切换到下一个可用的密钥
-3. 如果所有密钥都用尽配额，服务将返回429错误
-4. 为了安全起见，请设置一个强密码和复杂的访问令牌
+1. Cloudflare Workers 和 KV 存储在免费计划中有使用限制。
+2. 当一个 API 密钥配额用尽时，服务会自动切换到下一个。所有密钥都用尽时返回 429 错误。
+3. 请务必设置强访问令牌和管理密码。
+4. 建议定期备份您的 API 密钥。
 
 ## 自定义配置
 
-所有配置项都集中在 `config.js` 文件中，您可以根据需要修改以下配置：
-
-1. 默认模型：修改 `DEFAULT_MODEL` 属性
-2. OpenRouter API URL：修改 `OPENROUTER_API_URL` 属性
-3. 错误消息：修改 `ERROR_MESSAGES` 对象
-4. 界面配置：修改 `UI` 对象
-
-修改配置后，重新部署应用即可生效。
-
-## 限制
-
-1. Cloudflare Workers免费计划有每天100,000请求的限制
-2. KV存储在免费计划中有读写操作的限制
-3. 单个Worker请求的超时时间为30秒
+可以在 `config.js` 文件中修改默认模型、错误消息和 UI 文本。修改后需要将更改推送到你的 Git 仓库，Cloudflare 会自动重新部署。
 
 ## 常见问题解答
 
-### 1. 管理页面按钮无响应
+### 1. Worker 返回 "KV Namespace not configured correctly..." 错误
 
-如果您发现管理页面中的按钮点击后没有响应，请尝试以下解决方法：
+* **最可能的原因**: 你没有正确设置 `KV_BINDING_NAME` Secret。
+* **解决方法**:
+  1. 去 Cloudflare Dashboard -> Workers & Pages -> 你的 Worker -> Settings -> Variables -> KV Namespace Bindings，找到**实际的绑定名称**。
+  2. 去 Settings -> Variables -> Environment Variables & Secrets，添加或编辑名为 `KV_BINDING_NAME` 的 Secret，确保其值是你找到的**实际绑定名称**。
+  3. 保存 Secret 后，可能需要几秒钟到一分钟生效。
 
-1. 打开浏览器的开发者工具（F12），查看控制台是否有错误信息
-2. 尝试清除浏览器缓存并刷新页面
-3. 尝试使用不同的浏览器访问管理页面
-4. 查看页面底部的调试信息区域，检查是否有错误信息
-5. 点击"测试按钮响应"按钮，如果它能正常响应但其他按钮不能，说明可能是事件绑定问题
-6. 如果问题仍然存在，请重新部署应用
+### 2. 管理页面按钮无响应
 
-如果您不想使用网页界面设置，可以使用预设值功能。请参考"预设值配置"部分，在部署时直接设置访问令牌、管理密码和API密钥。
+* 打开浏览器开发者工具 (F12) 查看控制台是否有错误。
+* 尝试清除浏览器缓存或使用无痕模式访问。
+* 检查 `/admin` 页面的 URL 是否包含正确的 `access_token` 参数。
 
-### 2. KV命名空间创建失败
+### 3. 如何备份/迁移设置？
 
-如果在部署过程中出现KV命名空间创建失败的错误，您可以：
+* API 密钥和管理密码存储在 KV 中。最简单的方式是在新部署中通过 `/admin` 页面重新输入。
+* 访问令牌也存储在 KV 中，但可以通过 `PRESET_ACCESS_TOKEN` Secret 在新部署中预设。
 
-1. 在Cloudflare Workers控制台中手动创建KV命名空间
-2. 将创建的KV命名空间绑定到您的Worker，变量名为`API_KEYS`
-3. 重新部署您的Worker
+### 4. 如何更新 Worker？
 
-### 3. 如何备份我的API密钥和设置
-
-您可以通过管理页面的统计标签页查看当前存储的API密钥。建议您在其他地方安全地保存这些密钥的副本。
-
-如果您需要迁移到新的部署，可以：
-
-1. 在原部署的管理页面中获取您的API密钥
-2. 部署新的实例
-3. 在新实例的管理页面中输入这些API密钥
-
-### 4. 如何更改默认模型
-
-默认模型配置在`config.js`文件中。要更改默认模型，请修改`DEFAULT_MODEL`属性，然后重新部署应用。
-
-当前默认模型是`deepseek/deepseek-chat-v3-0324:free`。
-
-### 5. 一键部署常见问题
-
-如果您使用一键部署时遇到问题，请参考以下指南：
-
-1. **部署后显示 "There is nothing here yet"**：
-   - 登录到 Cloudflare Dashboard
-   - 进入 Workers & Pages > 您的Worker
-   - 点击 "Settings" > "Variables" > "KV Namespace Bindings"
-   - 添加一个新的绑定，变量名为 `API_KEYS`，选择刚刚创建的KV命名空间
-   - 保存并重新部署
-
-2. **如何设置环境变量**：
-   - 在部署过程中，会有一个步骤允许您设置环境变量
-   - 添加 `PRESET_ACCESS_TOKEN`、`PRESET_ADMIN_PASSWORD` 和 `PRESET_API_KEYS` 变量
-   - 如果错过了这一步，可以在部署后在 Dashboard 中添加这些变量
-
-3. **部署后如何修改环境变量**：
-   - 登录到 Cloudflare Dashboard
-   - 进入 Workers & Pages > 您的Worker
-   - 点击 "Settings" > "Variables" > "Environment Variables"
-   - 在这里您可以添加或修改环境变量
-
-4. **如何确认部署是否成功**：
-   - 访问您的Worker URL（例如：`https://your-worker-name.your-username.workers.dev/`）
-   - 如果显示欢迎页面，说明部署成功
-   - 如果显示错误，请参考上述解决方法
-
-### 6. 最新更新：预设值和调试功能
-
-最新版本添加了以下功能：
-
-1. **预设值功能**：可以在部署时直接设置访问令牌、管理密码和API密钥，无需通过网页界面设置
-2. **调试功能**：在管理页面底部添加了调试信息区域，显示操作状态和错误信息
-3. **测试按钮**：添加了"测试按钮响应"按钮，用于测试页面的基本交互功能
-4. **改进的事件绑定**：提高了按钮响应的可靠性
-5. **增强的错误报告**：更容易发现问题所在
-
-如果您之前部署的版本存在按钮无响应的问题，建议重新部署最新版本或使用预设值功能。
+* 如果你使用了 Git 集成，只需将最新的代码更改推送到你连接的 Git 仓库分支，Cloudflare 会自动部署更新。
+* 如果你没有使用 Git 集成（例如，直接上传代码），则需要重新上传更新后的代码。

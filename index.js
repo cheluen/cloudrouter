@@ -9,9 +9,6 @@
 // 导入配置
 import CONFIG from './config.js';
 
-// 导入配置
-import CONFIG from './config.js';
-
 // Helper function to get the KV Namespace binding
 // It prioritizes the binding name specified in the KV_BINDING_NAME Secret
 // and falls back to 'API_KEYS' for backward compatibility or local development.
@@ -20,11 +17,14 @@ function getKvNamespace(env) {
   if (configuredBindingName && env[configuredBindingName]) {
     // console.log(`Using KV namespace bound via KV_BINDING_NAME: ${configuredBindingName}`);
     return env[configuredBindingName];
-  } else if (env.API_KEYS) {
+  } else if (env.API_KEYS) { // Fallback for potential local testing or old setups
     // console.warn('KV_BINDING_NAME Secret not found or invalid. Falling back to default binding "API_KEYS".');
     return env.API_KEYS;
+  } else if (env.KV_NAMESPACE_BINDING) { // Fallback to the placeholder name if nothing else works (less ideal)
+     // console.warn('KV_BINDING_NAME Secret not found or invalid, and API_KEYS binding not found. Falling back to placeholder binding "KV_NAMESPACE_BINDING".');
+     return env.KV_NAMESPACE_BINDING;
   } else {
-    console.error('KV Namespace binding is not configured correctly. Set the KV_BINDING_NAME Secret or ensure the "API_KEYS" binding exists.');
+    console.error('KV Namespace binding is not configured correctly. Set the KV_BINDING_NAME Secret in Cloudflare Dashboard.');
     return null; // Indicate configuration error
   }
 }
@@ -36,7 +36,7 @@ async function handleRequest(request, env) {
   if (!KV) {
     // If KV namespace is not available, return an error immediately.
     return new Response(
-        'KV Namespace not configured correctly. Please check Worker settings and ensure the KV_BINDING_NAME Secret is set to the correct binding name.',
+        'KV Namespace not configured correctly. Please check Worker settings in Cloudflare Dashboard and ensure the KV_BINDING_NAME Secret is set to the correct binding name.',
         { status: 500 }
     );
   }

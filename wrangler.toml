@@ -3,23 +3,22 @@ main = "index.js"
 compatibility_date = "2023-10-30"
 
 # KV命名空间配置
-# 注意：在部署时，如果没有指定ID，将会自动创建一个新的KV命名空间
-# 重要：一键部署时，Cloudflare会自动创建一个KV命名空间并将其绑定到Worker。
-# 你需要找到这个自动生成的绑定名称，并在Cloudflare Dashboard中为这个Worker设置一个名为 KV_BINDING_NAME 的Secret，其值为这个自动生成的绑定名称。
-# 或者，如果使用 `wrangler deploy`，你可以指定绑定名称。
+# 注意：使用网页部署 (如 Git 集成) 时，Cloudflare 通常会自动创建一个 KV 命名空间并将其绑定到 Worker。
+# 部署后，你【必须】在 Cloudflare Dashboard 中找到这个自动生成的【绑定名称】，
+# 并为 Worker 设置一个名为 KV_BINDING_NAME 的 Secret，其值为这个【绑定名称】。
 kv_namespaces = [
-  # 注意：这里的 'binding' 名称 ('KV_NAMESPACE_BINDING') 只是一个占位符，
-  # 代码将通过读取 KV_BINDING_NAME Secret 来确定实际使用的绑定名称。
-  { binding = "KV_NAMESPACE_BINDING", preview_id = "temporary-preview-id", id = "YOUR_KV_NAMESPACE_ID_HERE" } # 部署前请替换 YOUR_KV_NAMESPACE_ID_HERE 或让Cloudflare自动创建
+  # 下面的 'binding' 名称 ('KV_NAMESPACE_BINDING') 只是一个占位符。
+  # 实际使用的绑定由 KV_BINDING_NAME Secret 决定。
+  # Cloudflare 在网页部署时会自动处理 ID。
+  { binding = "KV_NAMESPACE_BINDING", preview_id = "temporary-preview-id-for-local-dev" }
 ]
 
-# 环境变量/Secrets:
-# 为了安全起见，配置应作为Secrets进行管理。
-# 请通过Cloudflare Dashboard或wrangler secret put命令设置以下Secrets：
-# 1. KV_BINDING_NAME (必需): 设置为你实际使用的KV命名空间绑定名称 (例如，一键部署自动生成的名称)。
-# 2. PRESET_ACCESS_TOKEN (可选): 用于初始访问令牌。
-# 3. PRESET_ADMIN_PASSWORD (可选): 用于初始管理密码。
-# 4. PRESET_API_KEYS (可选): 用于初始API密钥，多个密钥用逗号分隔。
+# Secrets 配置 (在 Cloudflare Dashboard 中设置):
+# 为了安全和正常运行，请在部署后，在 Cloudflare Dashboard 的 Worker 设置中添加以下 Secrets：
+# 1. KV_BINDING_NAME (必需!): 值设置为 Cloudflare 为你的 KV 命名空间自动生成的【绑定名称】。
+# 2. PRESET_ACCESS_TOKEN (可选): 用于设置初始访问令牌 (至少8字符)。
+# 3. PRESET_ADMIN_PASSWORD (可选): 用于设置初始管理密码。
+# 4. PRESET_API_KEYS (可选): 用于设置初始 API 密钥，多个密钥用逗号分隔 (例如: "sk-abc,sk-def")。
 # 如果不设置这些Secrets，则需要在首次访问 /admin 页面时进行设置。
 
 # 路由配置（如果你有自定义域名）
