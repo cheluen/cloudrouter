@@ -61,54 +61,44 @@ async function handleRequest(request) {
   // 默认路由 - 返回简单的信息页面
   if (path === '/' && request.method === 'GET') {
     return new Response(
-      `<!DOCTYPE html>
-      <html>
-        <head>
-          <title>${CONFIG.UI.TITLE}</title>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <style>
-            body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-            h1 { color: #333; }
-            .container { background: #f5f5f5; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
-            p { line-height: 1.5; }
-            code { background: #eee; padding: 2px 5px; border-radius: 3px; }
-          </style>
-        </head>
-        <body>
-          <h1>${CONFIG.UI.TITLE}</h1>
-          <div class="container">
-            <h2>服务说明</h2>
-            <p>${CONFIG.UI.DESCRIPTION}，提供以下功能：</p>
-            <ul>
-              <li>存储多个OpenRouter API密钥</li>
-              <li>提供OpenAI兼容的API端点</li>
-              <li>自动轮询使用API密钥，当一个密钥用尽额度时自动切换到下一个</li>
-            </ul>
-            <p>管理页面受到保护，需要访问令牌才能访问。请使用以下链接访问管理页面：</p>
-            <p><code>/admin?${CONFIG.ACCESS_TOKEN_PARAM}=您的访问令牌</code></p>
-            <p>如果您是首次使用，请直接访问 <a href="/admin">/admin</a> 页面设置访问令牌。</p>
-          </div>
-
-          <div class="container">
-            <h2>API使用方法</h2>
-            <p>您可以像OpenAI API一样使用此服务：</p>
-            <pre><code>POST /v1/chat/completions
-Content-Type: application/json
-Authorization: Bearer your-custom-key
-
-{
-  "model": "deepseek/deepseek-chat-v3-0324:free",
-  "messages": [
-    { "role": "user", "content": "你好，请介绍一下自己" }
-  ]
-}</code></pre>
-            <p>获取可用模型：</p>
-            <pre><code>GET /v1/models
-Authorization: Bearer your-custom-key</code></pre>
-          </div>
-        </body>
-      </html>`,
+      '<!DOCTYPE html>\n' +
+      '<html>\n' +
+      '  <head>\n' +
+      '    <title>' + CONFIG.UI.TITLE + '</title>\n' +
+      '    <meta charset="UTF-8">\n' +
+      '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+      '    <style>\n' +
+      '      body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }\n' +
+      '      h1 { color: #333; }\n' +
+      '      .container { background: #f5f5f5; padding: 20px; border-radius: 5px; margin-bottom: 20px; }\n' +
+      '      p { line-height: 1.5; }\n' +
+      '      code { background: #eee; padding: 2px 5px; border-radius: 3px; }\n' +
+      '    </style>\n' +
+      '  </head>\n' +
+      '  <body>\n' +
+      '    <h1>' + CONFIG.UI.TITLE + '</h1>\n' +
+      '    <div class="container">\n' +
+      '      <h2>服务说明</h2>\n' +
+      '      <p>' + CONFIG.UI.DESCRIPTION + '，提供以下功能：</p>\n' +
+      '      <ul>\n' +
+      '        <li>存储多个OpenRouter API密钥</li>\n' +
+      '        <li>提供OpenAI兼容的API端点</li>\n' +
+      '        <li>自动轮询使用API密钥，当一个密钥用尽额度时自动切换到下一个</li>\n' +
+      '      </ul>\n' +
+      '      <p>管理页面受到保护，需要访问令牌才能访问。请使用以下链接访问管理页面：</p>\n' +
+      '      <p><code>/admin?' + CONFIG.ACCESS_TOKEN_PARAM + '=您的访问令牌</code></p>\n' +
+      '      <p>如果您是首次使用，请直接访问 <a href="/admin">/admin</a> 页面设置访问令牌。</p>\n' +
+      '    </div>\n' +
+      '\n' +
+      '    <div class="container">\n' +
+      '      <h2>API使用方法</h2>\n' +
+      '      <p>您可以像OpenAI API一样使用此服务：</p>\n' +
+      '      <pre><code>POST /v1/chat/completions\nContent-Type: application/json\nAuthorization: Bearer your-custom-key\n\n{\n  "model": "deepseek/deepseek-chat-v3-0324:free",\n  "messages": [\n    { "role": "user", "content": "你好，请介绍一下自己" }\n  ]\n}</code></pre>\n' +
+      '      <p>获取可用模型：</p>\n' +
+      '      <pre><code>GET /v1/models\nAuthorization: Bearer your-custom-key</code></pre>\n' +
+      '    </div>\n' +
+      '  </body>\n' +
+      '</html>',
       {
         headers: {
           'Content-Type': 'text/html;charset=UTF-8',
@@ -138,408 +128,374 @@ function handleCORS() {
 
 // 提供管理页面
 function serveAdminPage(isFirstTime) {
-  return new Response(
-    `<!DOCTYPE html>
-    <html>
-      <head>
-        <title>${CONFIG.UI.TITLE} - 管理页面</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-          h1 { color: #333; }
-          .container { background: #f5f5f5; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
-          textarea { width: 100%; height: 100px; margin-bottom: 10px; }
-          input[type="text"], input[type="password"] { width: 100%; padding: 8px; margin-bottom: 10px; }
-          button { background: #4285f4; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
-          button:hover { background: #3b78e7; }
-          .response { margin-top: 20px; white-space: pre-wrap; background: #eee; padding: 10px; }
-          .warning { color: #d32f2f; font-weight: bold; }
-          .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }
-          .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; }
-          .tab button:hover { background-color: #ddd; }
-          .tab button.active { background-color: #4285f4; color: white; }
-          .tabcontent { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; }
-          .visible { display: block; }
-        </style>
-      </head>
-      <body>
-        <h1>${CONFIG.UI.TITLE}</h1>
+  var firstTimeHtml = '';
+  if (isFirstTime) {
+    firstTimeHtml = '<div class="container">' +
+      '<h2>首次设置</h2>' +
+      '<p class="warning">请设置访问令牌以保护您的管理页面。此令牌将用于访问此管理页面。</p>' +
+      '<input type="text" id="accessToken" placeholder="设置一个访问令牌（至少8个字符）">' +
+      '<button id="saveTokenBtn">保存访问令牌</button>' +
+      '<div id="tokenResponse" class="response"></div>' +
+      '</div>';
+  }
 
-        ${isFirstTime ? `
-        <div class="container">
-          <h2>首次设置</h2>
-          <p class="warning">请设置访问令牌以保护您的管理页面。此令牌将用于访问此管理页面。</p>
-          <input type="text" id="accessToken" placeholder="设置一个访问令牌（至少8个字符）">
-          <button id="saveTokenBtn">保存访问令牌</button>
-          <div id="tokenResponse" class="response"></div>
-        </div>
-        ` : ''}
+  var tabsHtml = '<div class="tab">' +
+    '<button class="tablinks active" data-tab="apiKeysTab">密钥管理</button>' +
+    '<button class="tablinks" data-tab="statsTab">使用统计</button>' +
+    '<button class="tablinks" data-tab="settingsTab">设置</button>' +
+    '</div>';
 
-        <div class="tab">
-          <button class="tablinks active" data-tab="apiKeysTab">密钥管理</button>
-          <button class="tablinks" data-tab="statsTab">使用统计</button>
-          <button class="tablinks" data-tab="settingsTab">设置</button>
-        </div>
+  var apiKeysTabHtml = '<div id="apiKeysTab" class="tabcontent visible">' +
+    '<div class="container">' +
+    '<h2>管理API密钥</h2>' +
+    '<p>输入您的OpenRouter API密钥，每行一个：</p>' +
+    '<textarea id="apiKeys" placeholder="sk-or-xxxxxxxx"></textarea>' +
+    '<p>管理密码：</p>' +
+    '<input type="password" id="adminPassword" placeholder="输入管理密码">' +
+    '<br><br>' +
+    '<button id="saveKeysBtn">保存密钥</button>' +
+    '<div id="keysResponse" class="response"></div>' +
+    '</div>' +
+    '</div>';
 
-        <div id="apiKeysTab" class="tabcontent visible">
-          <div class="container">
-            <h2>管理API密钥</h2>
-            <p>输入您的OpenRouter API密钥，每行一个：</p>
-            <textarea id="apiKeys" placeholder="sk-or-xxxxxxxx"></textarea>
-            <p>管理密码：</p>
-            <input type="password" id="adminPassword" placeholder="输入管理密码">
-            <br><br>
-            <button id="saveKeysBtn">保存密钥</button>
-            <div id="keysResponse" class="response"></div>
-          </div>
-        </div>
+  var statsTabHtml = '<div id="statsTab" class="tabcontent">' +
+    '<div class="container">' +
+    '<h2>使用统计</h2>' +
+    '<button id="loadStatsBtn">加载统计数据</button>' +
+    '<div id="statsResponse" class="response"></div>' +
+    '</div>' +
+    '</div>';
 
-        <div id="statsTab" class="tabcontent">
-          <div class="container">
-            <h2>使用统计</h2>
-            <button id="loadStatsBtn">加载统计数据</button>
-            <div id="statsResponse" class="response"></div>
-          </div>
-        </div>
+  var settingsTabHtml = '<div id="settingsTab" class="tabcontent">' +
+    '<div class="container">' +
+    '<h2>设置</h2>' +
+    '<p>更改访问令牌：</p>' +
+    '<input type="text" id="newAccessToken" placeholder="新的访问令牌（至少8个字符）">' +
+    '<p>当前管理密码：</p>' +
+    '<input type="password" id="currentAdminPassword" placeholder="输入当前管理密码">' +
+    '<br><br>' +
+    '<button id="updateTokenBtn">更新访问令牌</button>' +
+    '<div id="settingsResponse" class="response"></div>' +
+    '</div>' +
+    '</div>';
 
-        <div id="settingsTab" class="tabcontent">
-          <div class="container">
-            <h2>设置</h2>
-            <p>更改访问令牌：</p>
-            <input type="text" id="newAccessToken" placeholder="新的访问令牌（至少8个字符）">
-            <p>当前管理密码：</p>
-            <input type="password" id="currentAdminPassword" placeholder="输入当前管理密码">
-            <br><br>
-            <button id="updateTokenBtn">更新访问令牌</button>
-            <div id="settingsResponse" class="response"></div>
-          </div>
-        </div>
+  var scriptHtml = '<script>' +
+    'function debugFetch(url, options) {' +
+    '  console.log("Fetch request:", { url, options });' +
+    '  return fetch(url, options)' +
+    '    .then(function(response) {' +
+    '      console.log("Fetch response status:", response.status);' +
+    '      return response.clone().text().then(function(text) {' +
+    '        try {' +
+    '          console.log("Fetch response body:", JSON.parse(text));' +
+    '        } catch (e) {' +
+    '          console.log("Fetch response body (text):", text);' +
+    '        }' +
+    '        return response;' +
+    '      });' +
+    '    })' +
+    '    .catch(function(error) {' +
+    '      console.error("Fetch error:", error);' +
+    '      throw error;' +
+    '    });' +
+    '}' +
+    '' +
+    'function openTab(evt, tabName) {' +
+    '  console.log("Opening tab:", tabName);' +
+    '  var i, tabcontent, tablinks;' +
+    '  tabcontent = document.getElementsByClassName("tabcontent");' +
+    '  for (i = 0; i < tabcontent.length; i++) {' +
+    '    tabcontent[i].classList.remove("visible");' +
+    '  }' +
+    '  tablinks = document.getElementsByClassName("tablinks");' +
+    '  for (i = 0; i < tablinks.length; i++) {' +
+    '    tablinks[i].classList.remove("active");' +
+    '  }' +
+    '  ' +
+    '  var tabElement = document.getElementById(tabName);' +
+    '  if (tabElement) {' +
+    '    tabElement.classList.add("visible");' +
+    '  } else {' +
+    '    console.error("Tab element not found:", tabName);' +
+    '  }' +
+    '  ' +
+    '  if (evt && evt.currentTarget) {' +
+    '    evt.currentTarget.classList.add("active");' +
+    '  } else {' +
+    '    var buttons = document.querySelectorAll(".tablinks");' +
+    '    for (i = 0; i < buttons.length; i++) {' +
+    '      if (buttons[i].getAttribute("data-tab") === tabName) {' +
+    '        buttons[i].classList.add("active");' +
+    '        break;' +
+    '      }' +
+    '    }' +
+    '  }' +
+    '}' +
+    '' +
+    'function initializeUI() {' +
+    '  console.log("Initializing UI...");' +
+    '  ' +
+    '  var tabButtons = document.querySelectorAll(".tablinks");' +
+    '  console.log("Found tab buttons:", tabButtons.length);' +
+    '  ' +
+    '  for (var i = 0; i < tabButtons.length; i++) {' +
+    '    (function(button) {' +
+    '      button.addEventListener("click", function(e) {' +
+    '        var tabName = button.getAttribute("data-tab");' +
+    '        console.log("Tab button clicked:", tabName);' +
+    '        openTab(e, tabName);' +
+    '      });' +
+    '    })(tabButtons[i]);' +
+    '  }' +
+    '  ' +
+    '  var saveTokenBtn = document.getElementById("saveTokenBtn");' +
+    '  if (saveTokenBtn) {' +
+    '    saveTokenBtn.addEventListener("click", function() {' +
+    '      saveAccessToken();' +
+    '    });' +
+    '  }' +
+    '  ' +
+    '  var saveKeysBtn = document.getElementById("saveKeysBtn");' +
+    '  if (saveKeysBtn) {' +
+    '    saveKeysBtn.addEventListener("click", function() {' +
+    '      saveKeys();' +
+    '    });' +
+    '  }' +
+    '  ' +
+    '  var loadStatsBtn = document.getElementById("loadStatsBtn");' +
+    '  if (loadStatsBtn) {' +
+    '    loadStatsBtn.addEventListener("click", function() {' +
+    '      loadStats();' +
+    '    });' +
+    '  }' +
+    '  ' +
+    '  var updateTokenBtn = document.getElementById("updateTokenBtn");' +
+    '  if (updateTokenBtn) {' +
+    '    updateTokenBtn.addEventListener("click", function() {' +
+    '      updateAccessToken();' +
+    '    });' +
+    '  }' +
+    '  ' +
+    '  openTab(null, "apiKeysTab");' +
+    '}' +
+    '' +
+    'window.addEventListener("load", function() {' +
+    '  initializeUI();' +
+    '});' +
+    '' +
+    'document.addEventListener("DOMContentLoaded", function() {' +
+    '  setTimeout(initializeUI, 100);' +
+    '});' +
+    '' +
+    'async function saveAccessToken() {' +
+    '  var accessToken = document.getElementById("accessToken").value.trim();' +
+    '  ' +
+    '  if (accessToken.length < 8) {' +
+    '    document.getElementById("tokenResponse").textContent = "访问令牌至少需要8个字符";' +
+    '    return;' +
+    '  }' +
+    '  ' +
+    '  try {' +
+    '    var response = await debugFetch("/manage-keys", {' +
+    '      method: "POST",' +
+    '      headers: {' +
+    '        "Content-Type": "application/json"' +
+    '      },' +
+    '      body: JSON.stringify({' +
+    '        accessToken: accessToken,' +
+    '        action: "set_token"' +
+    '      })' +
+    '    });' +
+    '    ' +
+    '    var data = await response.json();' +
+    '    if (data.success) {' +
+    '      window.location.href = "/admin?access_token=" + accessToken;' +
+    '    } else {' +
+    '      document.getElementById("tokenResponse").textContent = JSON.stringify(data, null, 2);' +
+    '    }' +
+    '  } catch (error) {' +
+    '    document.getElementById("tokenResponse").textContent = "错误: " + error.message;' +
+    '  }' +
+    '}' +
+    '' +
+    'async function updateAccessToken() {' +
+    '  var newAccessToken = document.getElementById("newAccessToken").value.trim();' +
+    '  var currentAdminPassword = document.getElementById("currentAdminPassword").value.trim();' +
+    '  ' +
+    '  if (newAccessToken.length < 8) {' +
+    '    document.getElementById("settingsResponse").textContent = "新的访问令牌至少需要8个字符";' +
+    '    return;' +
+    '  }' +
+    '  ' +
+    '  if (!currentAdminPassword) {' +
+    '    document.getElementById("settingsResponse").textContent = "请输入当前管理密码";' +
+    '    return;' +
+    '  }' +
+    '  ' +
+    '  try {' +
+    '    var response = await debugFetch("/manage-keys", {' +
+    '      method: "POST",' +
+    '      headers: {' +
+    '        "Content-Type": "application/json"' +
+    '      },' +
+    '      body: JSON.stringify({' +
+    '        accessToken: newAccessToken,' +
+    '        adminPassword: currentAdminPassword,' +
+    '        action: "update_token"' +
+    '      })' +
+    '    });' +
+    '    ' +
+    '    var data = await response.json();' +
+    '    document.getElementById("settingsResponse").textContent = JSON.stringify(data, null, 2);' +
+    '    ' +
+    '    if (data.success) {' +
+    '      setTimeout(function() {' +
+    '        alert("访问令牌已更新，请使用新的访问令牌访问管理页面。");' +
+    '        window.location.href = "/admin?access_token=" + newAccessToken;' +
+    '      }, 1000);' +
+    '    }' +
+    '  } catch (error) {' +
+    '    document.getElementById("settingsResponse").textContent = "错误: " + error.message;' +
+    '  }' +
+    '}' +
+    '' +
+    'async function saveKeys() {' +
+    '  var apiKeysElement = document.getElementById("apiKeys");' +
+    '  var apiKeysText = apiKeysElement.value.trim();' +
+    '  var apiKeys = apiKeysText.split("\n").filter(function(key) { return key.trim() !== ""; });' +
+    '  var adminPassword = document.getElementById("adminPassword").value.trim();' +
+    '  ' +
+    '  if (!adminPassword) {' +
+    '    document.getElementById("keysResponse").textContent = "请输入管理密码";' +
+    '    return;' +
+    '  }' +
+    '  ' +
+    '  if (apiKeys.length === 0) {' +
+    '    document.getElementById("keysResponse").textContent = "请输入至少一个API密钥";' +
+    '    return;' +
+    '  }' +
+    '  ' +
+    '  try {' +
+    '    var urlParams = new URLSearchParams(window.location.search);' +
+    '    var accessToken = urlParams.get("access_token");' +
+    '    ' +
+    '    var response = await debugFetch("/manage-keys", {' +
+    '      method: "POST",' +
+    '      headers: {' +
+    '        "Content-Type": "application/json"' +
+    '      },' +
+    '      body: JSON.stringify({' +
+    '        keys: apiKeys,' +
+    '        adminPassword: adminPassword,' +
+    '        accessToken: accessToken,' +
+    '        action: "set"' +
+    '      })' +
+    '    });' +
+    '    ' +
+    '    var data = await response.json();' +
+    '    document.getElementById("keysResponse").textContent = JSON.stringify(data, null, 2);' +
+    '  } catch (error) {' +
+    '    document.getElementById("keysResponse").textContent = "错误: " + error.message;' +
+    '  }' +
+    '}' +
+    '' +
+    'async function loadStats() {' +
+    '  try {' +
+    '    var urlParams = new URLSearchParams(window.location.search);' +
+    '    var accessToken = urlParams.get("access_token");' +
+    '    ' +
+    '    var adminPassword = prompt("请输入管理密码以查看统计数据");' +
+    '    if (!adminPassword) return;' +
+    '    ' +
+    '    var response = await debugFetch("/manage-keys", {' +
+    '      method: "POST",' +
+    '      headers: {' +
+    '        "Content-Type": "application/json"' +
+    '      },' +
+    '      body: JSON.stringify({' +
+    '        adminPassword: adminPassword,' +
+    '        accessToken: accessToken,' +
+    '        action: "get"' +
+    '      })' +
+    '    });' +
+    '    ' +
+    '    var data = await response.json();' +
+    '    ' +
+    '    if (data.error) {' +
+    '      document.getElementById("statsResponse").textContent = JSON.stringify(data, null, 2);' +
+    '      return;' +
+    '    }' +
+    '    ' +
+    '    var statsHtml = "<h3>API密钥统计</h3><table border=\"1\" style=\"width:100%; border-collapse: collapse;\">"' +
+    '    + "<tr><th>密钥</th><th>使用次数</th><th>错误次数</th><th>状态</th></tr>";' +
+    '    ' +
+    '    for (var i = 0; i < data.keys.length; i++) {' +
+    '      var key = data.keys[i];' +
+    '      var usage = data.usage[i] || 0;' +
+    '      var errors = data.errors[i] || 0;' +
+    '      var isCurrent = i === data.currentIndex;' +
+    '      ' +
+    '      var maskedKey = key.substring(0, 8) + "..." + key.substring(key.length - 4);' +
+    '      ' +
+    '      statsHtml += "<tr>"' +
+    '        + "<td>" + maskedKey + "</td>"' +
+    '        + "<td>" + usage + "</td>"' +
+    '        + "<td>" + errors + "</td>"' +
+    '        + "<td>" + (isCurrent ? "<strong>当前使用中</strong>" : "") + "</td>"' +
+    '        + "</tr>";' +
+    '    }' +
+    '    ' +
+    '    statsHtml += "</table>";' +
+    '    document.getElementById("statsResponse").innerHTML = statsHtml;' +
+    '  } catch (error) {' +
+    '    document.getElementById("statsResponse").textContent = "错误: " + error.message;' +
+    '  }' +
+    '}' +
+    '</script>';
 
-        <script>
-          // 调试函数
-          function debugFetch(url, options) {
-            console.log('Fetch request:', { url, options });
-            return fetch(url, options)
-              .then(response => {
-                console.log('Fetch response status:', response.status);
-                return response.clone().text().then(text => {
-                  try {
-                    console.log('Fetch response body:', JSON.parse(text));
-                  } catch (e) {
-                    console.log('Fetch response body (text):', text);
-                  }
-                  return response;
-                });
-              })
-              .catch(error => {
-                console.error('Fetch error:', error);
-                throw error;
-              });
-          }
+  var html = '<!DOCTYPE html>' +
+    '<html>' +
+    '  <head>' +
+    '    <title>' + CONFIG.UI.TITLE + ' - 管理页面</title>' +
+    '    <meta charset="UTF-8">' +
+    '    <meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '    <style>' +
+    '      body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }' +
+    '      h1 { color: #333; }' +
+    '      .container { background: #f5f5f5; padding: 20px; border-radius: 5px; margin-bottom: 20px; }' +
+    '      textarea { width: 100%; height: 100px; margin-bottom: 10px; }' +
+    '      input[type="text"], input[type="password"] { width: 100%; padding: 8px; margin-bottom: 10px; }' +
+    '      button { background: #4285f4; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }' +
+    '      button:hover { background: #3b78e7; }' +
+    '      .response { margin-top: 20px; white-space: pre-wrap; background: #eee; padding: 10px; }' +
+    '      .warning { color: #d32f2f; font-weight: bold; }' +
+    '      .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }' +
+    '      .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; }' +
+    '      .tab button:hover { background-color: #ddd; }' +
+    '      .tab button.active { background-color: #4285f4; color: white; }' +
+    '      .tabcontent { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; }' +
+    '      .visible { display: block; }' +
+    '    </style>' +
+    '  </head>' +
+    '  <body>' +
+    '    <h1>' + CONFIG.UI.TITLE + '</h1>' +
+    firstTimeHtml +
+    tabsHtml +
+    apiKeysTabHtml +
+    statsTabHtml +
+    settingsTabHtml +
+    scriptHtml +
+    '  </body>' +
+    '</html>';
 
-          // 切换标签页
-          function openTab(evt, tabName) {
-            console.log('Opening tab:', tabName);
-            var i, tabcontent, tablinks;
-            tabcontent = document.getElementsByClassName("tabcontent");
-            for (i = 0; i < tabcontent.length; i++) {
-              tabcontent[i].classList.remove("visible");
-            }
-            tablinks = document.getElementsByClassName("tablinks");
-            for (i = 0; i < tablinks.length; i++) {
-              tablinks[i].classList.remove("active");
-            }
-
-            // 安全地添加visible类
-            const tabElement = document.getElementById(tabName);
-            if (tabElement) {
-              tabElement.classList.add("visible");
-            } else {
-              console.error('Tab element not found:', tabName);
-            }
-
-            if (evt && evt.currentTarget) {
-              evt.currentTarget.classList.add("active");
-            } else {
-              // 如果没有事件对象，找到对应的按钮并添加active类
-              const buttons = document.querySelectorAll('.tablinks');
-              for (i = 0; i < buttons.length; i++) {
-                if (buttons[i].getAttribute('data-tab') === tabName) {
-                  buttons[i].classList.add('active');
-                  break;
-                }
-              }
-            }
-          }
-
-          // 初始化页面
-          window.addEventListener('load', function() {
-            console.log('Window fully loaded');
-            initializeUI();
-          });
-
-          document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM fully loaded');
-            // 在DOMContentLoaded事件中也初始化UI，确保在所有情况下都能正确初始化
-            setTimeout(initializeUI, 100);
-          });
-
-          // 将UI初始化代码提取到一个函数中
-          function initializeUI() {
-            console.log('Initializing UI...');
-
-            // 为所有标签按钮添加点击事件
-            const tabButtons = document.querySelectorAll('.tablinks');
-            console.log('Found tab buttons:', tabButtons.length);
-
-            // 打印所有标签按钮的属性
-            tabButtons.forEach((btn, index) => {
-              console.log(`Button ${index}:`, btn.textContent, 'data-tab:', btn.getAttribute('data-tab'));
-            });
-
-            for (let i = 0; i < tabButtons.length; i++) {
-              tabButtons[i].addEventListener('click', function(e) {
-                const tabName = this.getAttribute('data-tab');
-                console.log('Tab button clicked:', tabName);
-                openTab(e, tabName);
-              });
-            }
-
-            // 为其他按钮添加事件监听器
-            const saveTokenBtn = document.getElementById('saveTokenBtn');
-            if (saveTokenBtn) {
-              console.log('Found saveTokenBtn');
-              saveTokenBtn.addEventListener('click', function(e) {
-                console.log('Save token button clicked');
-                saveAccessToken();
-              });
-            } else {
-              console.log('saveTokenBtn not found');
-            }
-
-            const saveKeysBtn = document.getElementById('saveKeysBtn');
-            if (saveKeysBtn) {
-              console.log('Found saveKeysBtn');
-              saveKeysBtn.addEventListener('click', function(e) {
-                console.log('Save keys button clicked');
-                saveKeys();
-              });
-            } else {
-              console.log('saveKeysBtn not found');
-            }
-
-            const loadStatsBtn = document.getElementById('loadStatsBtn');
-            if (loadStatsBtn) {
-              console.log('Found loadStatsBtn');
-              loadStatsBtn.addEventListener('click', function(e) {
-                console.log('Load stats button clicked');
-                loadStats();
-              });
-            } else {
-              console.log('loadStatsBtn not found');
-            }
-
-            const updateTokenBtn = document.getElementById('updateTokenBtn');
-            if (updateTokenBtn) {
-              console.log('Found updateTokenBtn');
-              updateTokenBtn.addEventListener('click', function(e) {
-                console.log('Update token button clicked');
-                updateAccessToken();
-              });
-            } else {
-              console.log('updateTokenBtn not found');
-            }
-
-            // 默认显示第一个标签页
-            console.log('Setting default tab to apiKeysTab');
-            openTab(null, 'apiKeysTab');
-          }
-
-          // 保存访问令牌
-          async function saveAccessToken() {
-            const accessToken = document.getElementById('accessToken').value.trim();
-
-            if (accessToken.length < 8) {
-              document.getElementById('tokenResponse').textContent = '访问令牌至少需要8个字符';
-              return;
-            }
-
-            try {
-              const response = await debugFetch('/manage-keys', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  accessToken: accessToken,
-                  action: 'set_token'
-                })
-              });
-
-              const data = await response.json();
-              if (data.success) {
-                // 重定向到带有访问令牌的管理页面
-                window.location.href = '/admin?access_token=' + accessToken;
-              } else {
-                document.getElementById('tokenResponse').textContent = JSON.stringify(data, null, 2);
-              }
-            } catch (error) {
-              document.getElementById('tokenResponse').textContent = '错误: ' + error.message;
-            }
-          }
-
-          // 更新访问令牌
-          async function updateAccessToken() {
-            const newAccessToken = document.getElementById('newAccessToken').value.trim();
-            const currentAdminPassword = document.getElementById('currentAdminPassword').value.trim();
-
-            if (newAccessToken.length < 8) {
-              document.getElementById('settingsResponse').textContent = '新的访问令牌至少需要8个字符';
-              return;
-            }
-
-            if (!currentAdminPassword) {
-              document.getElementById('settingsResponse').textContent = '请输入当前管理密码';
-              return;
-            }
-
-            try {
-              const response = await debugFetch('/manage-keys', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  accessToken: newAccessToken,
-                  adminPassword: currentAdminPassword,
-                  action: 'update_token'
-                })
-              });
-
-              const data = await response.json();
-              document.getElementById('settingsResponse').textContent = JSON.stringify(data, null, 2);
-
-              if (data.success) {
-                // 提示用户使用新令牌
-                setTimeout(() => {
-                  alert('访问令牌已更新，请使用新的访问令牌访问管理页面。');
-                  window.location.href = '/admin?access_token=' + newAccessToken;
-                }, 1000);
-              }
-            } catch (error) {
-              document.getElementById('settingsResponse').textContent = '错误: ' + error.message;
-            }
-          }
-
-          // 保存API密钥
-          async function saveKeys() {
-            const apiKeys = document.getElementById('apiKeys').value.trim().split('\n').filter(key => key.trim() !== '');
-            const adminPassword = document.getElementById('adminPassword').value.trim();
-
-            if (!adminPassword) {
-              document.getElementById('keysResponse').textContent = '请输入管理密码';
-              return;
-            }
-
-            if (apiKeys.length === 0) {
-              document.getElementById('keysResponse').textContent = '请输入至少一个API密钥';
-              return;
-            }
-
-            try {
-              // 获取当前URL中的访问令牌
-              const urlParams = new URLSearchParams(window.location.search);
-              const accessToken = urlParams.get('access_token');
-
-              const response = await debugFetch('/manage-keys', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  keys: apiKeys,
-                  adminPassword: adminPassword,
-                  accessToken: accessToken,
-                  action: 'set'
-                })
-              });
-
-              const data = await response.json();
-              document.getElementById('keysResponse').textContent = JSON.stringify(data, null, 2);
-            } catch (error) {
-              document.getElementById('keysResponse').textContent = '错误: ' + error.message;
-            }
-          }
-
-          // 加载统计数据
-          async function loadStats() {
-            try {
-              // 获取当前URL中的访问令牌
-              const urlParams = new URLSearchParams(window.location.search);
-              const accessToken = urlParams.get('access_token');
-
-              const adminPassword = prompt('请输入管理密码以查看统计数据');
-              if (!adminPassword) return;
-
-              const response = await debugFetch('/manage-keys', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  adminPassword: adminPassword,
-                  accessToken: accessToken,
-                  action: 'get'
-                })
-              });
-
-              const data = await response.json();
-
-              if (data.error) {
-                document.getElementById('statsResponse').textContent = JSON.stringify(data, null, 2);
-                return;
-              }
-
-              // 格式化统计数据
-              let statsHtml = '<h3>API密钥统计</h3><table border="1" style="width:100%; border-collapse: collapse;">';
-              statsHtml += '<tr><th>密钥</th><th>使用次数</th><th>错误次数</th><th>状态</th></tr>';
-
-              for (let i = 0; i < data.keys.length; i++) {
-                const key = data.keys[i];
-                const usage = data.usage[i] || 0;
-                const errors = data.errors[i] || 0;
-                const isCurrent = i === data.currentIndex;
-
-                // 显示密钥的前8位和后4位
-                const maskedKey = key.substring(0, 8) + '...' + key.substring(key.length - 4);
-
-                statsHtml += '<tr>' +
-                  '<td>' + maskedKey + '</td>' +
-                  '<td>' + usage + '</td>' +
-                  '<td>' + errors + '</td>' +
-                  '<td>' + (isCurrent ? '<strong>当前使用中</strong>' : '') + '</td>' +
-                '</tr>';
-              }
-
-              statsHtml += '</table>';
-              document.getElementById('statsResponse').innerHTML = statsHtml;
-            } catch (error) {
-              document.getElementById('statsResponse').textContent = '错误: ' + error.message;
-            }
-          }
-        </script>
-      </body>
-    </html>`,
-    {
-      headers: {
-        'Content-Type': 'text/html;charset=UTF-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      },
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html;charset=UTF-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     }
-  );
+  });
 }
 
 // 管理API密钥

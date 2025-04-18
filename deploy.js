@@ -53,8 +53,29 @@ async function main() {
   // 创建KV命名空间
   log('正在创建新的KV命名空间...', colors.yellow);
 
-  // 创建KV命名空间
-  const createKvOutput = exec('wrangler kv:namespace create API_KEYS');
+  // 尝试创建KV命名空间
+  let createKvOutput = exec('wrangler kv:namespace create API_KEYS');
+
+  // 如果创建失败，尝试列出现有的KV命名空间
+  if (!createKvOutput) {
+    log('尝试列出现有的KV命名空间...', colors.yellow);
+    const listKvOutput = exec('wrangler kv:namespace list');
+
+    if (listKvOutput) {
+      // 尝试从列表中找到API_KEYS命名空间
+      const kvMatch = listKvOutput.match(/API_KEYS[^\n]*id = "([^"]+)"/i);
+      if (kvMatch) {
+        const kvId = kvMatch[1];
+        log(`找到现有的API_KEYS命名空间，ID: ${kvId}`, colors.green);
+
+        // 更新wrangler.toml中的ID
+        wranglerConfig = wranglerConfig.replace(/id = "[^"]*"/, `id = "${kvId}"`);
+        fs.writeFileSync(wranglerPath, wranglerConfig);
+        log('已更新wrangler.toml文件', colors.green);
+        createKvOutput = `id = "${kvId}"`; // 设置为有效值，以便后续处理
+      }
+    }
+  }
 
   if (!createKvOutput) {
     log('创建KV命名空间失败，将使用默认配置继续部署', colors.yellow);

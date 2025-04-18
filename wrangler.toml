@@ -8,6 +8,11 @@ kv_namespaces = [
   { binding = "API_KEYS", id = "temporary-id-for-deployment" }
 ]
 
+# 允许使用未绑定的KV命名空间
+# 这将允许在部署时使用临时ID
+[vars]
+ALLOW_UNBOUND_BINDINGS = true
+
 # 路由配置（如果你有自定义域名）
 # routes = [
 #   { pattern = "your-domain.com/*", zone_name = "your-domain.com" }
