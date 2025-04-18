@@ -82,7 +82,7 @@ const response = await fetch('https://your-worker.your-username.workers.dev/v1/c
     'Authorization': 'Bearer your-custom-key' // 这里可以使用任何值，因为验证是在OpenRouter端进行的
   },
   body: JSON.stringify({
-    model: 'anthropic/claude-3-opus-20240229', // 可选，默认使用claude-3-opus
+    model: 'deepseek/deepseek-chat-v3-0324:free', // 可选，默认使用deepseek-chat-v3
     messages: [
       { role: 'user', content: '你好，请介绍一下自己' }
     ]
