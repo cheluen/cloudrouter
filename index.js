@@ -171,15 +171,15 @@ function serveAdminPage(isFirstTime) {
           <h2>首次设置</h2>
           <p class="warning">请设置访问令牌以保护您的管理页面。此令牌将用于访问此管理页面。</p>
           <input type="text" id="accessToken" placeholder="设置一个访问令牌（至少8个字符）">
-          <button onclick="saveAccessToken()">保存访问令牌</button>
+          <button id="saveTokenBtn">保存访问令牌</button>
           <div id="tokenResponse" class="response"></div>
         </div>
         ` : ''}
 
         <div class="tab">
-          <button class="tablinks active" onclick="openTab(event, 'apiKeysTab')">密钥管理</button>
-          <button class="tablinks" onclick="openTab(event, 'statsTab')">使用统计</button>
-          <button class="tablinks" onclick="openTab(event, 'settingsTab')">设置</button>
+          <button class="tablinks active" data-tab="apiKeysTab">密钥管理</button>
+          <button class="tablinks" data-tab="statsTab">使用统计</button>
+          <button class="tablinks" data-tab="settingsTab">设置</button>
         </div>
 
         <div id="apiKeysTab" class="tabcontent visible">
@@ -190,7 +190,7 @@ function serveAdminPage(isFirstTime) {
             <p>管理密码：</p>
             <input type="password" id="adminPassword" placeholder="输入管理密码">
             <br><br>
-            <button onclick="saveKeys()">保存密钥</button>
+            <button id="saveKeysBtn">保存密钥</button>
             <div id="keysResponse" class="response"></div>
           </div>
         </div>
@@ -198,7 +198,7 @@ function serveAdminPage(isFirstTime) {
         <div id="statsTab" class="tabcontent">
           <div class="container">
             <h2>使用统计</h2>
-            <button onclick="loadStats()">加载统计数据</button>
+            <button id="loadStatsBtn">加载统计数据</button>
             <div id="statsResponse" class="response"></div>
           </div>
         </div>
@@ -211,7 +211,7 @@ function serveAdminPage(isFirstTime) {
             <p>当前管理密码：</p>
             <input type="password" id="currentAdminPassword" placeholder="输入当前管理密码">
             <br><br>
-            <button onclick="updateAccessToken()">更新访问令牌</button>
+            <button id="updateTokenBtn">更新访问令牌</button>
             <div id="settingsResponse" class="response"></div>
           </div>
         </div>
@@ -240,6 +240,7 @@ function serveAdminPage(isFirstTime) {
 
           // 切换标签页
           function openTab(evt, tabName) {
+            console.log('Opening tab:', tabName);
             var i, tabcontent, tablinks;
             tabcontent = document.getElementsByClassName("tabcontent");
             for (i = 0; i < tabcontent.length; i++) {
@@ -249,8 +250,110 @@ function serveAdminPage(isFirstTime) {
             for (i = 0; i < tablinks.length; i++) {
               tablinks[i].classList.remove("active");
             }
-            document.getElementById(tabName).classList.add("visible");
-            evt.currentTarget.classList.add("active");
+
+            // 安全地添加visible类
+            const tabElement = document.getElementById(tabName);
+            if (tabElement) {
+              tabElement.classList.add("visible");
+            } else {
+              console.error('Tab element not found:', tabName);
+            }
+
+            if (evt && evt.currentTarget) {
+              evt.currentTarget.classList.add("active");
+            } else {
+              // 如果没有事件对象，找到对应的按钮并添加active类
+              const buttons = document.querySelectorAll('.tablinks');
+              for (i = 0; i < buttons.length; i++) {
+                if (buttons[i].getAttribute('data-tab') === tabName) {
+                  buttons[i].classList.add('active');
+                  break;
+                }
+              }
+            }
+          }
+
+          // 初始化页面
+          window.addEventListener('load', function() {
+            console.log('Window fully loaded');
+            initializeUI();
+          });
+
+          document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM fully loaded');
+            // 在DOMContentLoaded事件中也初始化UI，确保在所有情况下都能正确初始化
+            setTimeout(initializeUI, 100);
+          });
+
+          // 将UI初始化代码提取到一个函数中
+          function initializeUI() {
+            console.log('Initializing UI...');
+
+            // 为所有标签按钮添加点击事件
+            const tabButtons = document.querySelectorAll('.tablinks');
+            console.log('Found tab buttons:', tabButtons.length);
+
+            // 打印所有标签按钮的属性
+            tabButtons.forEach((btn, index) => {
+              console.log(`Button ${index}:`, btn.textContent, 'data-tab:', btn.getAttribute('data-tab'));
+            });
+
+            for (let i = 0; i < tabButtons.length; i++) {
+              tabButtons[i].addEventListener('click', function(e) {
+                const tabName = this.getAttribute('data-tab');
+                console.log('Tab button clicked:', tabName);
+                openTab(e, tabName);
+              });
+            }
+
+            // 为其他按钮添加事件监听器
+            const saveTokenBtn = document.getElementById('saveTokenBtn');
+            if (saveTokenBtn) {
+              console.log('Found saveTokenBtn');
+              saveTokenBtn.addEventListener('click', function(e) {
+                console.log('Save token button clicked');
+                saveAccessToken();
+              });
+            } else {
+              console.log('saveTokenBtn not found');
+            }
+
+            const saveKeysBtn = document.getElementById('saveKeysBtn');
+            if (saveKeysBtn) {
+              console.log('Found saveKeysBtn');
+              saveKeysBtn.addEventListener('click', function(e) {
+                console.log('Save keys button clicked');
+                saveKeys();
+              });
+            } else {
+              console.log('saveKeysBtn not found');
+            }
+
+            const loadStatsBtn = document.getElementById('loadStatsBtn');
+            if (loadStatsBtn) {
+              console.log('Found loadStatsBtn');
+              loadStatsBtn.addEventListener('click', function(e) {
+                console.log('Load stats button clicked');
+                loadStats();
+              });
+            } else {
+              console.log('loadStatsBtn not found');
+            }
+
+            const updateTokenBtn = document.getElementById('updateTokenBtn');
+            if (updateTokenBtn) {
+              console.log('Found updateTokenBtn');
+              updateTokenBtn.addEventListener('click', function(e) {
+                console.log('Update token button clicked');
+                updateAccessToken();
+              });
+            } else {
+              console.log('updateTokenBtn not found');
+            }
+
+            // 默认显示第一个标签页
+            console.log('Setting default tab to apiKeysTab');
+            openTab(null, 'apiKeysTab');
           }
 
           // 保存访问令牌
