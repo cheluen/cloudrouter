@@ -4,21 +4,20 @@ compatibility_date = "2023-10-30"
 
 # KV命名空间配置
 # 注意：在部署时，如果没有指定ID，将会自动创建一个新的KV命名空间
-# 重要：一键部署时，请确保在Cloudflare中将KV命名空间绑定到变量名 API_KEYS
+# 重要：一键部署时，请确保在Cloudflare中创建了一个KV命名空间，并将其绑定到此Worker的变量名 API_KEYS 上。
+# 你可能需要在部署后手动在Cloudflare Dashboard中完成此绑定。
+# 或者，如果使用 `wrangler deploy`，它可以帮助创建和绑定。
 kv_namespaces = [
-  { binding = "API_KEYS", id = "temporary-id-for-deployment" }
+  { binding = "API_KEYS", preview_id = "temporary-preview-id", id = "YOUR_KV_NAMESPACE_ID_HERE" } # 部署前请替换 YOUR_KV_NAMESPACE_ID_HERE 或部署后手动绑定
 ]
 
-# 允许使用未绑定的KV命名空间
-# 这将允许在部署时使用临时ID
-[vars]
-ALLOW_UNBOUND_BINDINGS = true
-
-# 预设的访问令牌和管理密码
-# 这些值可以在部署时通过环境变量覆盖
-PRESET_ACCESS_TOKEN = "" # 预设的访问令牌
-PRESET_ADMIN_PASSWORD = "" # 预设的管理密码
-PRESET_API_KEYS = "" # 预设的API密钥，多个密钥用逗号分隔
+# 环境变量/Secrets:
+# 为了安全起见，访问令牌、管理密码和API密钥应作为Secrets进行管理。
+# 请通过Cloudflare Dashboard或wrangler secret put命令设置以下Secrets：
+# PRESET_ACCESS_TOKEN (可选，用于初始访问令牌)
+# PRESET_ADMIN_PASSWORD (可选，用于初始管理密码)
+# PRESET_API_KEYS (可选，用于初始API密钥，逗号分隔)
+# 如果不设置这些Secrets，则需要在首次访问 /admin 页面时进行设置。
 
 # 路由配置（如果你有自定义域名）
 # routes = [
