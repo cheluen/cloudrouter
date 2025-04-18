@@ -1,6 +1,6 @@
 # OpenRouter API密钥管理器
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter&worker=true)
 
 这是一个部署在Cloudflare Workers上的OpenRouter API密钥管理器，它提供以下功能：
 
@@ -14,9 +14,13 @@
 
 1. 点击上方的 "Deploy to Cloudflare Workers" 按钮
 2. 登录您的Cloudflare账户
-3. 按照提示完成部署流程
+3. 在部署过程中，您可以设置以下环境变量（强烈建议）：
+   - `PRESET_ACCESS_TOKEN`：您的访问令牌（至少8个字符）
+   - `PRESET_ADMIN_PASSWORD`：您的管理密码
+   - `PRESET_API_KEYS`：您的OpenRouter API密钥，多个密钥用逗号分隔
+4. 完成部署后，请确保KV命名空间正确绑定（详见"部署常见问题"部分）
 
-这种方式会自动配置所需的KV命名空间和环境变量。
+这种方式会自动创建KV命名空间，并允许您在部署过程中设置环境变量。设置环境变量后，您可以直接使用应用，无需再通过网页界面设置。
 
 #### 部署前准备
 
@@ -51,11 +55,13 @@ PRESET_API_KEYS = "您的API密钥,可以有多个,用逗号分隔"
 
 #### 部署常见问题
 
-1. **KV命名空间创建失败**：部署脚本会尝试创建KV命名空间，如果失败，将使用默认配置继续部署。您可以在部署后手动创建KV命名空间并更新Worker的绑定。
+1. **KV命名空间绑定问题**：一键部署时，系统会自动创建一个KV命名空间，但可能不会正确绑定到变量名 `API_KEYS`。部署后，请在Cloudflare Dashboard中进入您的Worker设置，在 "Settings" > "Variables" > "KV Namespace Bindings" 中添加一个绑定，将变量名设置为 `API_KEYS`，并选择刚刚创建的KV命名空间。
 
-2. **按钮无响应**：如果部署后管理页面中的按钮无响应，请检查浏览器控制台是否有错误信息。如果有，可能是由于JavaScript代码出错或者浏览器兼容性问题导致的。
+2. **显示 "There is nothing here yet"**：如果部署后访问您的Worker URL显示此错误，请检查KV命名空间绑定是否正确。确保在Cloudflare Dashboard中将KV命名空间绑定到变量名 `API_KEYS`。
 
-3. **部署失败**：如果部署失败，请检查是否有权限创建Workers和KV命名空间，以及是否超过了免费计划的限制。
+3. **按钮无响应**：如果部署后管理页面中的按钮无响应，请检查浏览器控制台是否有错误信息。如果有，可能是由于JavaScript代码出错或者浏览器兼容性问题导致的。
+
+4. **部署失败**：如果部署失败，请检查是否有权限创建Workers和KV命名空间，以及是否超过了免费计划的限制。
 
 ### 方式二：从自己的GitHub仓库部署
 
@@ -208,7 +214,34 @@ console.log(models);
 
 当前默认模型是`deepseek/deepseek-chat-v3-0324:free`。
 
-### 5. 最新更新：预设值和调试功能
+### 5. 一键部署常见问题
+
+如果您使用一键部署时遇到问题，请参考以下指南：
+
+1. **部署后显示 "There is nothing here yet"**：
+   - 登录到 Cloudflare Dashboard
+   - 进入 Workers & Pages > 您的Worker
+   - 点击 "Settings" > "Variables" > "KV Namespace Bindings"
+   - 添加一个新的绑定，变量名为 `API_KEYS`，选择刚刚创建的KV命名空间
+   - 保存并重新部署
+
+2. **如何设置环境变量**：
+   - 在部署过程中，会有一个步骤允许您设置环境变量
+   - 添加 `PRESET_ACCESS_TOKEN`、`PRESET_ADMIN_PASSWORD` 和 `PRESET_API_KEYS` 变量
+   - 如果错过了这一步，可以在部署后在 Dashboard 中添加这些变量
+
+3. **部署后如何修改环境变量**：
+   - 登录到 Cloudflare Dashboard
+   - 进入 Workers & Pages > 您的Worker
+   - 点击 "Settings" > "Variables" > "Environment Variables"
+   - 在这里您可以添加或修改环境变量
+
+4. **如何确认部署是否成功**：
+   - 访问您的Worker URL（例如：`https://your-worker-name.your-username.workers.dev/`）
+   - 如果显示欢迎页面，说明部署成功
+   - 如果显示错误，请参考上述解决方法
+
+### 6. 最新更新：预设值和调试功能
 
 最新版本添加了以下功能：
 

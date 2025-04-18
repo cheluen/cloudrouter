@@ -4,6 +4,7 @@ compatibility_date = "2023-10-30"
 
 # KV命名空间配置
 # 注意：在部署时，如果没有指定ID，将会自动创建一个新的KV命名空间
+# 重要：一键部署时，请确保在Cloudflare中将KV命名空间绑定到变量名 API_KEYS
 kv_namespaces = [
   { binding = "API_KEYS", id = "temporary-id-for-deployment" }
 ]
