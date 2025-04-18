@@ -13,6 +13,9 @@ import CONFIG from './config.js';
 // 这个变量会在Cloudflare Workers环境中自动绑定到KV命名空间
 /* global API_KEYS */
 
+// 声明环境变量
+/* global PRESET_ACCESS_TOKEN, PRESET_ADMIN_PASSWORD, PRESET_API_KEYS */
+
 // 处理请求
 async function handleRequest(request) {
   // 检查请求方法
@@ -926,7 +929,54 @@ function jsonResponse(data, status = 200) {
   });
 }
 
+// 初始化预设值
+async function initializePresetValues() {
+  try {
+    console.log('检查是否需要初始化预设值...');
+
+    // 检查是否已经设置了访问令牌
+    const storedAccessToken = await API_KEYS.get('access_token');
+
+    // 如果已经设置了访问令牌，则不进行初始化
+    if (storedAccessToken) {
+      console.log('已经设置了访问令牌，跳过初始化');
+      return;
+    }
+
+    // 检查是否有预设的访问令牌
+    if (typeof PRESET_ACCESS_TOKEN === 'string' && PRESET_ACCESS_TOKEN.length >= 8) {
+      console.log('使用预设的访问令牌进行初始化');
+      await API_KEYS.put('access_token', PRESET_ACCESS_TOKEN);
+    }
+
+    // 检查是否有预设的管理密码
+    if (typeof PRESET_ADMIN_PASSWORD === 'string' && PRESET_ADMIN_PASSWORD.length > 0) {
+      console.log('使用预设的管理密码进行初始化');
+      await API_KEYS.put('admin_password', PRESET_ADMIN_PASSWORD);
+    }
+
+    // 检查是否有预设的API密钥
+    if (typeof PRESET_API_KEYS === 'string' && PRESET_API_KEYS.length > 0) {
+      console.log('使用预设的API密钥进行初始化');
+      const apiKeys = PRESET_API_KEYS.split(',').map(key => key.trim()).filter(key => key !== '');
+
+      if (apiKeys.length > 0) {
+        await API_KEYS.put('api_keys', JSON.stringify(apiKeys));
+        await API_KEYS.put('key_usage', JSON.stringify(apiKeys.map(() => 0)));
+        await API_KEYS.put('key_errors', JSON.stringify(apiKeys.map(() => 0)));
+        await API_KEYS.put('current_key_index', '0');
+      }
+    }
+  } catch (error) {
+    console.error('初始化预设值时出错:', error);
+  }
+}
+
 // 注册事件监听器
-addEventListener('fetch', event => {
+addEventListener('fetch', async event => {
+  // 初始化预设值
+  await initializePresetValues();
+
+  // 处理请求
   event.respondWith(handleRequest(event.request));
 });

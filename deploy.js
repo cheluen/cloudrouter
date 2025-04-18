@@ -50,6 +50,60 @@ async function main() {
   const wranglerPath = path.join(__dirname, 'wrangler.toml');
   let wranglerConfig = fs.readFileSync(wranglerPath, 'utf8');
 
+  // 设置预设值
+  log('检查是否需要设置预设值...', colors.yellow);
+
+  // 询问用户是否要设置预设值
+  const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  const askQuestion = (query) => new Promise(resolve => readline.question(query, resolve));
+
+  try {
+    const setPresetValues = await askQuestion('是否要设置预设值？这将在部署时自动初始化访问令牌和API密钥。(y/n): ');
+
+    if (setPresetValues.toLowerCase() === 'y') {
+      // 设置访问令牌
+      const accessToken = await askQuestion('请设置访问令牌（至少8个字符）: ');
+      if (accessToken.length < 8) {
+        log('访问令牌至少需要8个字符', colors.red);
+        readline.close();
+        process.exit(1);
+      }
+
+      // 设置管理密码
+      const adminPassword = await askQuestion('请设置管理密码: ');
+      if (!adminPassword) {
+        log('管理密码不能为空', colors.red);
+        readline.close();
+        process.exit(1);
+      }
+
+      // 设置API密钥
+      const apiKeys = await askQuestion('请输入OpenRouter API密钥，多个密钥用逗号分隔: ');
+      if (!apiKeys) {
+        log('至少需要输入一个API密钥', colors.red);
+        readline.close();
+        process.exit(1);
+      }
+
+      // 更新wrangler.toml中的预设值
+      wranglerConfig = wranglerConfig.replace(/PRESET_ACCESS_TOKEN = "[^"]*"/, `PRESET_ACCESS_TOKEN = "${accessToken}"`);
+      wranglerConfig = wranglerConfig.replace(/PRESET_ADMIN_PASSWORD = "[^"]*"/, `PRESET_ADMIN_PASSWORD = "${adminPassword}"`);
+      wranglerConfig = wranglerConfig.replace(/PRESET_API_KEYS = "[^"]*"/, `PRESET_API_KEYS = "${apiKeys}"`);
+
+      fs.writeFileSync(wranglerPath, wranglerConfig);
+      log('已更新wrangler.toml文件中的预设值', colors.green);
+    }
+
+    readline.close();
+  } catch (error) {
+    log(`设置预设值时出错: ${error.message}`, colors.red);
+    if (readline) readline.close();
+  }
+
   // 创建KV命名空间
   log('正在创建新的KV命名空间...', colors.yellow);
 
