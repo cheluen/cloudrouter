@@ -182,20 +182,25 @@ function serveAdminPage(isFirstTime) {
   var scriptHtml = '<script>' +
     'function debugFetch(url, options) {' +
     '  console.log("Fetch request:", { url, options });' +
+    '  document.getElementById("debug-info").textContent = "发送请求到: " + url;' +
     '  return fetch(url, options)' +
     '    .then(function(response) {' +
     '      console.log("Fetch response status:", response.status);' +
+    '      document.getElementById("debug-info").textContent += "\n响应状态: " + response.status;' +
     '      return response.clone().text().then(function(text) {' +
     '        try {' +
     '          console.log("Fetch response body:", JSON.parse(text));' +
+    '          document.getElementById("debug-info").textContent += "\n响应内容: " + text.substring(0, 100) + "...";' +
     '        } catch (e) {' +
     '          console.log("Fetch response body (text):", text);' +
+    '          document.getElementById("debug-info").textContent += "\n响应内容: " + text.substring(0, 100) + "...";' +
     '        }' +
     '        return response;' +
     '      });' +
     '    })' +
     '    .catch(function(error) {' +
     '      console.error("Fetch error:", error);' +
+    '      document.getElementById("debug-info").textContent += "\n请求错误: " + error.message;' +
     '      throw error;' +
     '    });' +
     '}' +
@@ -234,57 +239,72 @@ function serveAdminPage(isFirstTime) {
     '' +
     'function initializeUI() {' +
     '  console.log("Initializing UI...");' +
+    '  document.getElementById("debug-info").textContent = "UI初始化中...";' +
     '  ' +
+    '  // 直接绑定按钮点击事件，不使用事件监听器' +
+    '  document.getElementById("saveTokenBtn").onclick = function() {' +
+    '    console.log("保存令牌按钮被点击");' +
+    '    document.getElementById("debug-info").textContent = "保存令牌按钮被点击";' +
+    '    saveAccessToken();' +
+    '  };' +
+    '  ' +
+    '  document.getElementById("saveKeysBtn").onclick = function() {' +
+    '    console.log("保存密钥按钮被点击");' +
+    '    document.getElementById("debug-info").textContent = "保存密钥按钮被点击";' +
+    '    saveKeys();' +
+    '  };' +
+    '  ' +
+    '  document.getElementById("loadStatsBtn").onclick = function() {' +
+    '    console.log("加载统计按钮被点击");' +
+    '    document.getElementById("debug-info").textContent = "加载统计按钮被点击";' +
+    '    loadStats();' +
+    '  };' +
+    '  ' +
+    '  document.getElementById("updateTokenBtn").onclick = function() {' +
+    '    console.log("更新令牌按钮被点击");' +
+    '    document.getElementById("debug-info").textContent = "更新令牌按钮被点击";' +
+    '    updateAccessToken();' +
+    '  };' +
+    '  ' +
+    '  // 绑定标签页切换事件' +
     '  var tabButtons = document.querySelectorAll(".tablinks");' +
-    '  console.log("Found tab buttons:", tabButtons.length);' +
+    '  console.log("找到标签按钮:", tabButtons.length);' +
     '  ' +
     '  for (var i = 0; i < tabButtons.length; i++) {' +
-    '    (function(button) {' +
-    '      button.addEventListener("click", function(e) {' +
-    '        var tabName = button.getAttribute("data-tab");' +
-    '        console.log("Tab button clicked:", tabName);' +
-    '        openTab(e, tabName);' +
-    '      });' +
-    '    })(tabButtons[i]);' +
-    '  }' +
-    '  ' +
-    '  var saveTokenBtn = document.getElementById("saveTokenBtn");' +
-    '  if (saveTokenBtn) {' +
-    '    saveTokenBtn.addEventListener("click", function() {' +
-    '      saveAccessToken();' +
-    '    });' +
-    '  }' +
-    '  ' +
-    '  var saveKeysBtn = document.getElementById("saveKeysBtn");' +
-    '  if (saveKeysBtn) {' +
-    '    saveKeysBtn.addEventListener("click", function() {' +
-    '      saveKeys();' +
-    '    });' +
-    '  }' +
-    '  ' +
-    '  var loadStatsBtn = document.getElementById("loadStatsBtn");' +
-    '  if (loadStatsBtn) {' +
-    '    loadStatsBtn.addEventListener("click", function() {' +
-    '      loadStats();' +
-    '    });' +
-    '  }' +
-    '  ' +
-    '  var updateTokenBtn = document.getElementById("updateTokenBtn");' +
-    '  if (updateTokenBtn) {' +
-    '    updateTokenBtn.addEventListener("click", function() {' +
-    '      updateAccessToken();' +
-    '    });' +
+    '    tabButtons[i].onclick = function() {' +
+    '      var tabName = this.getAttribute("data-tab");' +
+    '      console.log("标签按钮被点击:", tabName);' +
+    '      document.getElementById("debug-info").textContent = "标签按钮被点击: " + tabName;' +
+    '      openTab(null, tabName);' +
+    '    };' +
     '  }' +
     '  ' +
     '  openTab(null, "apiKeysTab");' +
+    '  document.getElementById("debug-info").textContent = "UI初始化完成";' +
     '}' +
     '' +
-    'window.addEventListener("load", function() {' +
-    '  initializeUI();' +
-    '});' +
+    '// 确保在页面加载完成后初始化UI' +
+    'window.onload = function() {' +
+    '  console.log("Window loaded");' +
+    '  setTimeout(function() {' +
+    '    console.log("执行延迟初始化");' +
+    '    initializeUI();' +
+    '    // 添加测试按钮事件' +
+    '    document.getElementById("test-button").onclick = function() {' +
+    '      document.getElementById("debug-info").textContent = "测试按钮被点击 - " + new Date().toISOString();' +
+    '    };' +
+    '  }, 500);' +
+    '};' +
     '' +
+    '// 备用初始化方法' +
     'document.addEventListener("DOMContentLoaded", function() {' +
-    '  setTimeout(initializeUI, 100);' +
+    '  console.log("DOM内容已加载");' +
+    '  setTimeout(function() {' +
+    '    if (!window.uiInitialized) {' +
+    '      console.log("使用DOMContentLoaded初始化UI");' +
+    '      initializeUI();' +
+    '    }' +
+    '  }, 1000);' +
     '});' +
     '' +
     'async function saveAccessToken() {' +
@@ -465,7 +485,9 @@ function serveAdminPage(isFirstTime) {
     '      .container { background: #f5f5f5; padding: 20px; border-radius: 5px; margin-bottom: 20px; }' +
     '      textarea { width: 100%; height: 100px; margin-bottom: 10px; }' +
     '      input[type="text"], input[type="password"] { width: 100%; padding: 8px; margin-bottom: 10px; }' +
-    '      button { background: #4285f4; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }' +
+    '      button { background: #4285f4; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin-right: 10px; }' +
+    '      #debug-container { background: #ffe; padding: 10px; border: 1px solid #ddd; margin-top: 20px; }' +
+    '      #debug-info { font-family: monospace; white-space: pre-wrap; font-size: 12px; }' +
     '      button:hover { background: #3b78e7; }' +
     '      .response { margin-top: 20px; white-space: pre-wrap; background: #eee; padding: 10px; }' +
     '      .warning { color: #d32f2f; font-weight: bold; }' +
@@ -484,6 +506,11 @@ function serveAdminPage(isFirstTime) {
     apiKeysTabHtml +
     statsTabHtml +
     settingsTabHtml +
+    '<div class="container" id="debug-container">' +
+    '  <h2>调试信息</h2>' +
+    '  <button id="test-button">测试按钮响应</button>' +
+    '  <div id="debug-info">等待初始化...</div>' +
+    '</div>' +
     scriptHtml +
     '  </body>' +
     '</html>';
