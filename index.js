@@ -9,15 +9,38 @@
 // 导入配置
 import CONFIG from './config.js';
 
-// 声明KV命名空间绑定
-// 这个变量会在Cloudflare Workers环境中自动绑定到KV命名空间
-/* global API_KEYS */
+// 导入配置
+import CONFIG from './config.js';
 
-// 声明环境变量
-/* global PRESET_ACCESS_TOKEN, PRESET_ADMIN_PASSWORD, PRESET_API_KEYS */
+// Helper function to get the KV Namespace binding
+// It prioritizes the binding name specified in the KV_BINDING_NAME Secret
+// and falls back to 'API_KEYS' for backward compatibility or local development.
+function getKvNamespace(env) {
+  const configuredBindingName = env.KV_BINDING_NAME;
+  if (configuredBindingName && env[configuredBindingName]) {
+    // console.log(`Using KV namespace bound via KV_BINDING_NAME: ${configuredBindingName}`);
+    return env[configuredBindingName];
+  } else if (env.API_KEYS) {
+    // console.warn('KV_BINDING_NAME Secret not found or invalid. Falling back to default binding "API_KEYS".');
+    return env.API_KEYS;
+  } else {
+    console.error('KV Namespace binding is not configured correctly. Set the KV_BINDING_NAME Secret or ensure the "API_KEYS" binding exists.');
+    return null; // Indicate configuration error
+  }
+}
+
 
 // 处理请求
-async function handleRequest(request) {
+async function handleRequest(request, env) {
+  const KV = getKvNamespace(env);
+  if (!KV) {
+    // If KV namespace is not available, return an error immediately.
+    return new Response(
+        'KV Namespace not configured correctly. Please check Worker settings and ensure the KV_BINDING_NAME Secret is set to the correct binding name.',
+        { status: 500 }
+    );
+  }
+
   // 检查请求方法
   if (request.method === 'OPTIONS') {
     return handleCORS();
@@ -28,17 +51,17 @@ async function handleRequest(request) {
 
   // 管理API密钥的路由
   if (path === '/manage-keys' && request.method === 'POST') {
-    return handleManageKeys(request);
+    return handleManageKeys(request, KV);
   }
 
   // OpenAI兼容的聊天完成路由
   if (path === '/v1/chat/completions') {
-    return handleChatCompletions(request);
+    return handleChatCompletions(request, KV);
   }
 
   // OpenAI兼容的模型列表路由
   if (path === '/v1/models') {
-    return handleModels(request);
+    return handleModels(request, KV);
   }
 
   // 管理页面路由
@@ -46,11 +69,37 @@ async function handleRequest(request) {
     // 验证访问令牌
     const params = url.searchParams;
     const accessToken = params.get(CONFIG.ACCESS_TOKEN_PARAM);
-    const storedAccessToken = await API_KEYS.get('access_token');
+    // Check KV for the stored access token
+    const storedAccessToken = await KV.get('access_token');
 
-    // 如果没有设置访问令牌，允许首次访问以设置令牌
+    // 如果没有设置访问令牌 (either not set in KV or via Secret), 允许首次访问以设置令牌
     if (!storedAccessToken) {
-      return serveAdminPage(true);
+      // Check if a preset token exists in secrets/env
+      const presetToken = env.PRESET_ACCESS_TOKEN;
+      if (presetToken && presetToken.length >= 8) {
+         // If preset token exists, save it to KV and redirect to admin page with token
+         await KV.put('access_token', presetToken);
+         // Also set preset password and keys if they exist
+         if (env.PRESET_ADMIN_PASSWORD) {
+            await KV.put('admin_password', env.PRESET_ADMIN_PASSWORD);
+         }
+         if (env.PRESET_API_KEYS) {
+            const apiKeys = env.PRESET_API_KEYS.split(',').map(key => key.trim()).filter(key => key !== '');
+            if (apiKeys.length > 0) {
+               await KV.put('api_keys', JSON.stringify(apiKeys));
+               await KV.put('key_usage', JSON.stringify(apiKeys.map(() => 0)));
+               await KV.put('key_errors', JSON.stringify(apiKeys.map(() => 0)));
+               await KV.put('current_key_index', '0');
+            }
+         }
+         // Redirect to admin page with the preset token
+         const adminUrl = new URL(request.url);
+         adminUrl.searchParams.set(CONFIG.ACCESS_TOKEN_PARAM, presetToken);
+         return Response.redirect(adminUrl.toString(), 302);
+      } else {
+        // No stored token and no valid preset token, show first-time setup
+        return serveAdminPage(true);
+      }
     }
 
     // 验证访问令牌
@@ -130,7 +179,7 @@ function handleCORS() {
 }
 
 // 提供管理页面
-function serveAdminPage(isFirstTime) {
+function serveAdminPage(isFirstTime) { // Note: KV is not directly needed here as checks happen before calling
   var firstTimeHtml = '';
   if (isFirstTime) {
     firstTimeHtml = '<div class="container">' +
@@ -529,7 +578,7 @@ function serveAdminPage(isFirstTime) {
 }
 
 // 管理API密钥
-async function handleManageKeys(request) {
+async function handleManageKeys(request, KV) {
   try {
     const requestData = await request.json();
     const { action } = requestData;
@@ -539,7 +588,7 @@ async function handleManageKeys(request) {
       const { accessToken } = requestData;
 
       // 检查是否已经设置了访问令牌
-      const storedAccessToken = await API_KEYS.get('access_token');
+      const storedAccessToken = await KV.get('access_token');
       if (storedAccessToken) {
         return jsonResponse({ error: '访问令牌已经设置，请使用更新功能修改' }, 400);
       }
@@ -550,7 +599,7 @@ async function handleManageKeys(request) {
       }
 
       // 保存访问令牌
-      await API_KEYS.put('access_token', accessToken);
+      await KV.put('access_token', accessToken);
 
       return jsonResponse({ success: true, message: '访问令牌已设置' });
     }
@@ -560,7 +609,7 @@ async function handleManageKeys(request) {
       const { accessToken, adminPassword } = requestData;
 
       // 验证管理密码
-      const storedPassword = await API_KEYS.get('admin_password');
+      const storedPassword = await KV.get('admin_password');
       if (!storedPassword || storedPassword !== adminPassword) {
         return jsonResponse({ error: '管理密码不正确' }, 403);
       }
@@ -571,14 +620,18 @@ async function handleManageKeys(request) {
       }
 
       // 保存新的访问令牌
-      await API_KEYS.put('access_token', accessToken);
+      await KV.put('access_token', accessToken);
 
       return jsonResponse({ success: true, message: '访问令牌已更新' });
     }
 
     // 验证访问令牌（除了首次设置外的所有操作）
-    const { accessToken } = requestData;
-    const storedAccessToken = await API_KEYS.get('access_token');
+    const { accessToken: requestAccessToken } = requestData; // Rename to avoid conflict
+    const storedAccessToken = await KV.get('access_token');
+
+    if (storedAccessToken && (!requestAccessToken || requestAccessToken !== storedAccessToken)) {
+      return jsonResponse({ error: '访问令牌无效' }, 403);
+    }
 
     if (storedAccessToken && (!accessToken || accessToken !== storedAccessToken)) {
       return jsonResponse({ error: '访问令牌无效' }, 403);
@@ -589,38 +642,38 @@ async function handleManageKeys(request) {
       const { keys, adminPassword } = requestData;
 
       // 验证管理密码
-      const storedPassword = await API_KEYS.get('admin_password');
+      const storedPassword = await KV.get('admin_password');
 
       if (!storedPassword) {
         // 首次设置
-        await API_KEYS.put('admin_password', adminPassword);
+        await KV.put('admin_password', adminPassword);
       } else if (storedPassword !== adminPassword) {
         return jsonResponse({ error: '管理密码不正确' }, 403);
       }
 
       // 保存API密钥
-      await API_KEYS.put('api_keys', JSON.stringify(keys));
+      await KV.put('api_keys', JSON.stringify(keys));
       // 重置使用计数
-      await API_KEYS.put('key_usage', JSON.stringify(keys.map(() => 0)));
+      await KV.put('key_usage', JSON.stringify(keys.map(() => 0)));
       // 重置错误计数
-      await API_KEYS.put('key_errors', JSON.stringify(keys.map(() => 0)));
+      await KV.put('key_errors', JSON.stringify(keys.map(() => 0)));
       // 设置当前使用的密钥索引
-      await API_KEYS.put('current_key_index', '0');
+      await KV.put('current_key_index', '0');
 
       return jsonResponse({ success: true, message: `已保存 ${keys.length} 个API密钥` });
     } else if (action === 'get') {
       // 获取当前密钥（需要管理密码）
-      const { adminPassword } = requestData;
-      const storedPassword = await API_KEYS.get('admin_password');
+      const { adminPassword: requestAdminPassword } = requestData; // Rename
+      const storedPassword = await KV.get('admin_password');
 
-      if (!storedPassword || storedPassword !== adminPassword) {
+      if (!storedPassword || storedPassword !== requestAdminPassword) {
         return jsonResponse({ error: '管理密码不正确' }, 403);
       }
 
-      const apiKeys = await API_KEYS.get('api_keys');
-      const keyUsage = await API_KEYS.get('key_usage');
-      const keyErrors = await API_KEYS.get('key_errors');
-      const currentKeyIndex = await API_KEYS.get('current_key_index');
+      const apiKeys = await KV.get('api_keys');
+      const keyUsage = await KV.get('key_usage');
+      const keyErrors = await KV.get('key_errors');
+      const currentKeyIndex = await KV.get('current_key_index');
 
       return jsonResponse({
         keys: apiKeys ? JSON.parse(apiKeys) : [],
@@ -637,16 +690,16 @@ async function handleManageKeys(request) {
 }
 
 // 处理聊天完成请求
-async function handleChatCompletions(request) {
+async function handleChatCompletions(request, KV) {
   try {
     // 获取API密钥
-    const apiKeys = await getApiKeys();
+    const apiKeys = await getApiKeys(KV);
     if (!apiKeys || apiKeys.length === 0) {
       return jsonResponse({ error: CONFIG.ERROR_MESSAGES.NO_API_KEYS }, 500);
     }
 
     // 获取当前使用的密钥索引
-    let currentKeyIndex = parseInt(await API_KEYS.get('current_key_index') || '0');
+    let currentKeyIndex = parseInt(await KV.get('current_key_index') || '0');
     if (isNaN(currentKeyIndex) || currentKeyIndex >= apiKeys.length) {
       currentKeyIndex = 0;
     }
@@ -673,10 +726,10 @@ async function handleChatCompletions(request) {
          responseData.error.message?.includes('rate limit'))
       ) {
         // 更新错误计数
-        await updateKeyErrorCount(currentKeyIndex);
+        await updateKeyErrorCount(currentKeyIndex, KV);
 
         // 切换到下一个密钥
-        const nextKeyIndex = await rotateToNextKey(currentKeyIndex, apiKeys.length);
+        const nextKeyIndex = await rotateToNextKey(currentKeyIndex, apiKeys.length, KV);
 
         // 如果所有密钥都已用尽，返回错误
         if (nextKeyIndex === -1) {
@@ -692,7 +745,7 @@ async function handleChatCompletions(request) {
         }
 
         // 更新使用计数
-        await updateKeyUsageCount(nextKeyIndex);
+        await updateKeyUsageCount(nextKeyIndex, KV);
 
         return jsonResponse(await retryResponse.json());
       }
@@ -701,7 +754,7 @@ async function handleChatCompletions(request) {
     }
 
     // 更新使用计数
-    await updateKeyUsageCount(currentKeyIndex);
+    await updateKeyUsageCount(currentKeyIndex, KV);
 
     // 返回成功响应
     return jsonResponse(responseData);
@@ -711,16 +764,16 @@ async function handleChatCompletions(request) {
 }
 
 // 处理模型列表请求
-async function handleModels(request) {
+async function handleModels(request, KV) {
   try {
     // 获取API密钥
-    const apiKeys = await getApiKeys();
+    const apiKeys = await getApiKeys(KV);
     if (!apiKeys || apiKeys.length === 0) {
       return jsonResponse({ error: CONFIG.ERROR_MESSAGES.NO_API_KEYS }, 500);
     }
 
     // 获取当前使用的密钥索引
-    let currentKeyIndex = parseInt(await API_KEYS.get('current_key_index') || '0');
+    let currentKeyIndex = parseInt(await KV.get('current_key_index') || '0');
     if (isNaN(currentKeyIndex) || currentKeyIndex >= apiKeys.length) {
       currentKeyIndex = 0;
     }
@@ -749,10 +802,10 @@ async function handleModels(request) {
          responseData.error.message?.includes('rate limit'))
       ) {
         // 更新错误计数
-        await updateKeyErrorCount(currentKeyIndex);
+        await updateKeyErrorCount(currentKeyIndex, KV);
 
         // 切换到下一个密钥
-        const nextKeyIndex = await rotateToNextKey(currentKeyIndex, apiKeys.length);
+        const nextKeyIndex = await rotateToNextKey(currentKeyIndex, apiKeys.length, KV);
 
         // 如果所有密钥都已用尽，返回错误
         if (nextKeyIndex === -1) {
@@ -838,8 +891,8 @@ function formatModelsResponse(openRouterModels) {
 }
 
 // 获取API密钥
-async function getApiKeys() {
-  const apiKeysStr = await API_KEYS.get('api_keys');
+async function getApiKeys(KV) {
+  const apiKeysStr = await KV.get('api_keys');
   if (!apiKeysStr) return [];
 
   try {
@@ -850,9 +903,9 @@ async function getApiKeys() {
 }
 
 // 更新密钥使用计数
-async function updateKeyUsageCount(keyIndex) {
+async function updateKeyUsageCount(keyIndex, KV) {
   try {
-    const keyUsageStr = await API_KEYS.get('key_usage');
+    const keyUsageStr = await KV.get('key_usage');
     let keyUsage = [];
 
     if (keyUsageStr) {
@@ -868,16 +921,16 @@ async function updateKeyUsageCount(keyIndex) {
     keyUsage[keyIndex]++;
 
     // 保存更新后的使用计数
-    await API_KEYS.put('key_usage', JSON.stringify(keyUsage));
+    await KV.put('key_usage', JSON.stringify(keyUsage));
   } catch (error) {
     console.error('更新密钥使用计数时出错:', error);
   }
 }
 
 // 更新密钥错误计数
-async function updateKeyErrorCount(keyIndex) {
+async function updateKeyErrorCount(keyIndex, KV) {
   try {
-    const keyErrorsStr = await API_KEYS.get('key_errors');
+    const keyErrorsStr = await KV.get('key_errors');
     let keyErrors = [];
 
     if (keyErrorsStr) {
@@ -893,14 +946,14 @@ async function updateKeyErrorCount(keyIndex) {
     keyErrors[keyIndex]++;
 
     // 保存更新后的错误计数
-    await API_KEYS.put('key_errors', JSON.stringify(keyErrors));
+    await KV.put('key_errors', JSON.stringify(keyErrors));
   } catch (error) {
     console.error('更新密钥错误计数时出错:', error);
   }
 }
 
 // 轮询到下一个可用的密钥
-async function rotateToNextKey(currentIndex, totalKeys) {
+async function rotateToNextKey(currentIndex, totalKeys, KV) {
   // 如果只有一个密钥，无法轮询
   if (totalKeys <= 1) {
     return -1;
@@ -910,7 +963,7 @@ async function rotateToNextKey(currentIndex, totalKeys) {
   const nextIndex = (currentIndex + 1) % totalKeys;
 
   // 保存新的密钥索引
-  await API_KEYS.put('current_key_index', nextIndex.toString());
+  await KV.put('current_key_index', nextIndex.toString());
 
   return nextIndex;
 }
@@ -931,8 +984,6 @@ function jsonResponse(data, status = 200) {
 
 // 注册事件监听器
 addEventListener('fetch', event => {
-  // 处理请求
-  // 注意：预设值初始化逻辑已移除。
-  // 配置现在依赖于Cloudflare Secrets/环境变量或首次通过 /admin 页面设置。
-  event.respondWith(handleRequest(event.request));
+  // 将 env 对象传递给 handleRequest
+  event.respondWith(handleRequest(event.request, event.env));
 });
