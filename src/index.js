@@ -368,6 +368,7 @@ async function getAdminHtml(env) {
 
         // --- Auth Logic ---
         async function checkAuthStatus() {
+            console.log('checkAuthStatus: Starting...');
             loadingDiv.classList.remove('hidden');
             authSection.classList.add('hidden');
             mainContent.classList.add('hidden');
@@ -376,39 +377,75 @@ async function getAdminHtml(env) {
                 // Attempt to retrieve password from localStorage first
                 const storedPassword = localStorage.getItem('cloudrouter_admin_password');
                 let loggedIn = false;
+                console.log('checkAuthStatus: Checking stored password...');
 
                 if (storedPassword) {
-                    // Verify the stored password still works
+                    console.log('checkAuthStatus: Found stored password. Verifying...');
                     adminPassword = storedPassword;
-                    const loginResponse = await apiCall('/auth/login', 'POST', { password: adminPassword }, false); // Use POST login to verify
+                    // Use apiCall to verify, it has better error handling
+                    const loginResponse = await apiCall('/auth/login', 'POST', { password: adminPassword }, false);
                     if (loginResponse && loginResponse.success) {
+                        console.log('checkAuthStatus: Stored password verified.');
                         loggedIn = true;
                     } else {
+                        console.log('checkAuthStatus: Stored password invalid or verification failed.');
                         adminPassword = null; // Clear invalid stored password
                         localStorage.removeItem('cloudrouter_admin_password');
+                        // Don't show login error here, proceed to check setup status
                     }
+                } else {
+                    console.log('checkAuthStatus: No stored password found.');
                 }
 
                 if (loggedIn) {
+                    console.log('checkAuthStatus: Logged in. Showing main content...');
                     showMainContent();
                 } else {
-                     // If not logged in via stored password, check if setup is needed
-                    const statusResponse = await fetch(\`\${adminApiBase}/auth/status\`);
-                    const statusData = await statusResponse.json();
+                    console.log('checkAuthStatus: Not logged in. Checking setup status via /api/admin/auth/status...');
+                    // If not logged in via stored password, check if setup is needed
+                    let statusData = null;
+                    try {
+                        const statusResponse = await fetch(\`\${adminApiBase}/auth/status\`);
+                        console.log('checkAuthStatus: Status API response status:', statusResponse.status);
+                        if (!statusResponse.ok) {
+                             // Throw an error if response is not OK (e.g., 500)
+                             throw new Error(\`Status check failed with status: \${statusResponse.status}\`);
+                        }
+                         // Try parsing JSON, might fail if backend returned HTML error page
+                        statusData = await statusResponse.json();
+                        console.log('checkAuthStatus: Status API response data:', statusData);
 
-                    if (!statusData.isPasswordSet) {
+                    } catch (fetchError) {
+                         console.error('checkAuthStatus: Failed to fetch or parse status API response:', fetchError);
+                         // Show login by default if status check fails, assuming password might be set
+                         showLogin();
+                         showLoginError('无法检查服务器状态，请稍后重试。');
+                         loadingDiv.classList.add('hidden'); // Hide loading indicator even on error
+                         return; // Stop further execution in this block
+                    }
+
+
+                    if (statusData && statusData.isPasswordSet === false) { // Explicitly check for false
+                        console.log('checkAuthStatus: Password not set. Showing setup...');
                         showSetup();
                     } else {
+                        // Assume password is set (or status check failed ambiguously)
+                        console.log('checkAuthStatus: Password likely set or status unknown. Showing login...');
                         showLogin();
                     }
                 }
             } catch (error) {
-                console.error('Error checking auth status:', error);
+                // Catch errors from the outer try block (e.g., apiCall errors during login verification)
+                console.error('checkAuthStatus: General error during auth check:', error);
                 loadingDiv.textContent = '加载管理面板时出错，请刷新页面。';
-                // Keep loading visible
-                return;
+                // Do not hide loading indicator here, as the error message replaces it.
+                return; // Stop execution
             }
+
+            // Ensure loading indicator is hidden if no major error occurred
+            console.log('checkAuthStatus: Hiding loading indicator.');
             loadingDiv.classList.add('hidden');
+            console.log('checkAuthStatus: Finished.');
         }
 
         function showSetup() {
