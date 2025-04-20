@@ -15,11 +15,11 @@
 3. 配置部署参数：
    - **项目名称**：为您的Worker选择一个名称（例如`cloudrouter`）
    - **KV命名空间**：创建一个名为`ROUTER_KV`的KV命名空间
-   - **环境变量**：添加`AUTH_KEY`变量，设置您的管理密钥
+   - **环境变量**：无需额外设置环境变量。
 
 4. 点击"部署"按钮
 
-5. 部署完成后，访问您的Worker URL（例如`https://cloudrouter.your-username.workers.dev`）
+5. 部署完成后，访问您的Worker URL（例如`https://cloudrouter.your-username.workers.dev`）。首次访问时，系统会提示您设置管理员密码。
 
 ### 方法二：使用Wrangler CLI
 
@@ -51,14 +51,12 @@
    wrangler kv:namespace create "ROUTER_KV"
    ```
 
-7. 编辑`wrangler.toml`文件，更新KV命名空间ID和AUTH_KEY
+7. 编辑`wrangler.toml`文件，确保KV命名空间ID正确：
    ```toml
    [[kv_namespaces]]
    binding = "ROUTER_KV"
    id = "您的KV命名空间ID" # 替换为上一步创建的KV命名空间ID
-
-   [vars]
-   AUTH_KEY = "您的管理密钥" # 替换为您想要设置的管理密钥
+   # [vars] 部分不再需要 AUTH_KEY
    ```
 
 8. 部署到Cloudflare Workers
@@ -66,44 +64,35 @@
    npm run deploy
    ```
 
-## 在Cloudflare Pages上部署
+## 在Cloudflare Pages上部署 (不推荐)
 
-您也可以将CloudRouter部署到Cloudflare Pages，并使用Pages Functions功能：
+虽然可以将此 Worker 部署为 Pages Function，但直接部署为 Worker 通常更简单直接。如果您仍希望部署到 Pages：
 
-1. 创建一个新的Pages项目，并连接到您的GitHub仓库
-
-2. 配置构建设置：
-   - **框架预设**：None
-   - **构建命令**：`npm run build`
-   - **构建输出目录**：`dist`
-
-3. 在环境变量中添加：
-   - `AUTH_KEY`：您的管理密钥
-
-4. 在Pages Functions设置中启用"Functions"
-
-5. 创建一个KV命名空间，并绑定到您的Pages项目
-   - 命名空间名称：`ROUTER_KV`
-   - 变量名：`ROUTER_KV`
-
-6. 部署项目
+1. 创建一个新的Pages项目，连接到您的GitHub仓库。
+2. **构建设置**:
+   - 框架预设: None
+   - 构建命令: (留空或 `echo "No build needed"`)
+   - 构建输出目录: (留空或 `/`)
+3. **环境变量**: 无需设置 `AUTH_KEY`。
+4. **Functions**: 确保启用了 Pages Functions。将 `src/index.js` 作为 Function 文件。
+5. **KV 绑定**: 创建 `ROUTER_KV` 命名空间并将其绑定到 Pages 项目，变量名为 `ROUTER_KV`。
+6. 部署项目。首次访问需要设置管理员密码。
 
 ## 首次使用设置
 
-1. 访问您部署的Worker或Pages URL（例如`https://cloudrouter.your-username.workers.dev`）
-
-2. 使用您设置的管理密钥登录管理面板
-
-3. 在"API密钥管理"标签页中添加您的OpenRouter API密钥
-   - 可以添加多个API密钥，系统会自动轮询使用
-
-4. 在您的AI客户端中更改API端点为您的Worker URL
+1. 访问您部署的 Worker URL（例如 `https://cloudrouter.your-username.workers.dev`）。
+2. **设置管理员密码**：首次访问时，系统会引导您设置一个安全的管理员密码。请务必记住此密码，它用于访问管理面板。
+3. **登录管理面板**：使用您刚刚设置的密码登录。
+4. **添加 OpenRouter API 密钥**：在管理面板中，添加一个或多个您的 OpenRouter API 密钥。提供一个名称和密钥值（通常以 `sk-or-` 开头）。系统会自动轮询使用这些密钥。
+5. **配置 AI 客户端**：
+   - 将您的 AI 客户端（如 NextChat, LobeChat 等）的 API Base URL 设置为您的 Worker URL，并在末尾加上 `/v1`，例如：`https://cloudrouter.your-username.workers.dev/v1`。
+   - API Key 字段可以填写任何以 `sk-` 开头的字符串（例如 `sk-12345`），它仅用于基础验证，实际的 OpenRouter 密钥由后端管理。
 
 ## 故障排除
 
 如果您在部署或使用CloudRouter时遇到问题，请尝试以下步骤：
 
-1. 确保您已正确设置所有环境变量和KV命名空间
+1. 确保您已正确创建并绑定了 `ROUTER_KV` 命名空间。
 
 2. 检查Cloudflare Workers/Pages的日志，了解可能的错误原因
 
