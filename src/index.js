@@ -506,6 +506,7 @@ async function getAdminHtml(env) {
          // Simple HTML escaping
         function escapeHtml(unsafe) {
             if (!unsafe) return '';
+            // Correctly escape HTML special characters
             return unsafe
                  .replace(/&/g, "&")
                  .replace(/</g, "<")
