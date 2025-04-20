@@ -4,7 +4,7 @@ compatibility_date = "2023-09-01"
 
 [[kv_namespaces]]
 binding = "ROUTER_KV"
-id = "your-kv-id" # 部署时需要替换为实际的KV命名空间ID
+id = "2408e3358bc74a58a9833471a29212e8" # 这是部署日志中实际创建的KV命名空间ID
 
 [vars]
-AUTH_KEY = "your-auth-key" # 部署时可以修改为自定义的认证密钥 
+AUTH_KEY = "cloudrouter-admin-key" # 设置一个更安全的默认管理密钥 

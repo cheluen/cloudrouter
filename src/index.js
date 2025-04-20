@@ -108,9 +108,493 @@ let adminHtml = null;
 // 获取管理页面HTML
 async function getAdminHtml() {
   if (!adminHtml) {
-    // 这里我们包含了预先编写的HTML内容
-    // 在实际部署中，你可以从静态资源或KV存储中获取
-    adminHtml = await fetch('https://raw.githubusercontent.com/yourusername/cloudrouter/main/src/admin.html').then(res => res.text());
+    // 直接返回内联HTML，而不是从GitHub获取
+    adminHtml = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudRouter 管理面板</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+    .container {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .btn {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s;
+    }
+    .btn:hover {
+      background-color: #2980b9;
+    }
+    .btn-danger {
+      background-color: #e74c3c;
+    }
+    .btn-danger:hover {
+      background-color: #c0392b;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f5f5f5;
+    }
+    .key-status {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .key-status.healthy {
+      background-color: #2ecc71;
+    }
+    .key-status.unhealthy {
+      background-color: #e74c3c;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      border-radius: 8px;
+      width: 50%;
+      max-width: 500px;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover {
+      color: #000;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .code-block {
+      background-color: #f7f7f7;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      overflow-x: auto;
+    }
+    .tab {
+      overflow: hidden;
+      border: 1px solid #ccc;
+      background-color: #f1f1f1;
+      border-radius: 4px 4px 0 0;
+    }
+    .tab button {
+      background-color: inherit;
+      float: left;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      transition: 0.3s;
+      font-size: 14px;
+    }
+    .tab button:hover {
+      background-color: #ddd;
+    }
+    .tab button.active {
+      background-color: #3498db;
+      color: white;
+    }
+    .tabcontent {
+      display: none;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>CloudRouter 管理面板</h1>
+    </div>
+    
+    <div class="tab">
+      <button class="tablinks active" onclick="openTab(event, 'apiKeys')">API密钥管理</button>
+      <button class="tablinks" onclick="openTab(event, 'deploy')">部署指南</button>
+      <button class="tablinks" onclick="openTab(event, 'usage')">使用说明</button>
+    </div>
+    
+    <div id="apiKeys" class="tabcontent" style="display: block;">
+      <div class="header">
+        <h2>API密钥管理</h2>
+        <button class="btn" id="addKeyBtn">添加新密钥</button>
+      </div>
+      
+      <div id="keysList">
+        <p>正在加载API密钥...</p>
+      </div>
+    </div>
+    
+    <div id="deploy" class="tabcontent">
+      <h2>部署指南</h2>
+      
+      <h3>从GitHub部署</h3>
+      <p>您可以通过以下简单步骤将CloudRouter部署到Cloudflare Workers:</p>
+      <ol>
+        <li>Fork <a href="https://github.com/cheluen/cloudrouter" target="_blank">CloudRouter GitHub仓库</a></li>
+        <li>在Cloudflare Dashboard中创建一个新的Workers服务</li>
+        <li>在Workers服务设置中连接您的GitHub仓库</li>
+        <li>创建一个KV命名空间，命名为"ROUTER_KV"</li>
+        <li>在Workers环境变量中设置AUTH_KEY为您自定义的管理密钥</li>
+        <li>部署Workers服务</li>
+      </ol>
+      
+      <h3>本地开发</h3>
+      <div class="code-block">
+        <pre>
+# 克隆仓库
+git clone https://github.com/cheluen/cloudrouter.git
+cd cloudrouter
+
+# 安装依赖
+npm install
+
+# 本地开发
+npm run dev
+
+# 部署到Cloudflare Workers
+npm run deploy
+        </pre>
+      </div>
+    </div>
+    
+    <div id="usage" class="tabcontent">
+      <h2>使用说明</h2>
+      
+      <h3>API端点</h3>
+      <p>CloudRouter提供了与OpenAI API兼容的端点:</p>
+      <ul>
+        <li><code>/v1/chat/completions</code> - 用于发送聊天请求</li>
+        <li><code>/v1/models</code> - 获取可用模型列表</li>
+      </ul>
+      
+      <h3>在客户端使用</h3>
+      <p>您可以在支持OpenAI API的客户端中使用CloudRouter，只需更改API基础URL:</p>
+      <div class="code-block">
+        <pre>
+# API基础URL
+https://your-worker-subdomain.workers.dev
+
+# 身份验证
+使用您设置的自定义API密钥进行身份验证，格式为"Bearer YOUR_API_KEY"
+        </pre>
+      </div>
+      
+      <h3>管理API密钥</h3>
+      <p>使用管理面板添加和管理OpenRouter API密钥。系统会自动轮询使用这些密钥，如果某个密钥无响应，将自动切换到下一个可用密钥。</p>
+    </div>
+  </div>
+  
+  <!-- 添加密钥对话框 -->
+  <div id="addKeyModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>添加API密钥</h2>
+      <form id="addKeyForm">
+        <div class="form-group">
+          <label for="keyName">密钥名称</label>
+          <input type="text" id="keyName" required>
+        </div>
+        <div class="form-group">
+          <label for="keyValue">密钥值</label>
+          <input type="password" id="keyValue" required>
+        </div>
+        <button type="submit" class="btn">添加</button>
+      </form>
+    </div>
+  </div>
+  
+  <!-- 身份验证对话框 -->
+  <div id="authModal" class="modal">
+    <div class="modal-content">
+      <h2>请输入管理密钥</h2>
+      <div class="form-group">
+        <label for="authKey">管理密钥</label>
+        <input type="password" id="authKey" required>
+      </div>
+      <button id="authSubmit" class="btn">登录</button>
+    </div>
+  </div>
+
+  <script>
+    let authToken = '';
+    const apiBasePath = ''; // 如果部署在子路径，请在这里设置
+    
+    // 显示身份验证对话框
+    function showAuthModal() {
+      document.getElementById('authModal').style.display = 'block';
+    }
+    
+    // 检查身份验证
+    function checkAuth() {
+      authToken = localStorage.getItem('cloudrouter_auth_token');
+      if (!authToken) {
+        showAuthModal();
+        return false;
+      }
+      return true;
+    }
+    
+    // 加载API密钥列表
+    async function loadKeys() {
+      if (!checkAuth()) return;
+      
+      try {
+        const response = await fetch(\`\${apiBasePath}/admin/keys\`, {
+          headers: {
+            'Authorization': \`Bearer \${authToken}\`
+          }
+        });
+        
+        if (response.status === 401) {
+          localStorage.removeItem('cloudrouter_auth_token');
+          showAuthModal();
+          return;
+        }
+        
+        const keys = await response.json();
+        const keysList = document.getElementById('keysList');
+        
+        if (keys.length === 0) {
+          keysList.innerHTML = '<p>没有API密钥。请添加新密钥。</p>';
+          return;
+        }
+        
+        let html = \`
+          <table>
+            <thead>
+              <tr>
+                <th>状态</th>
+                <th>名称</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+        \`;
+        
+        keys.forEach(key => {
+          const statusClass = key.isHealthy === false ? 'unhealthy' : 'healthy';
+          const statusText = key.isHealthy === false ? '不可用' : '可用';
+          
+          html += \`
+            <tr>
+              <td><span class="key-status \${statusClass}"></span>\${statusText}</td>
+              <td>\${key.name}</td>
+              <td>
+                <button class="btn btn-danger" onclick="deleteKey('\${key.name}')">删除</button>
+              </td>
+            </tr>
+          \`;
+        });
+        
+        html += \`
+            </tbody>
+          </table>
+        \`;
+        
+        keysList.innerHTML = html;
+      } catch (error) {
+        console.error('加载API密钥失败', error);
+        document.getElementById('keysList').innerHTML = '<p>加载API密钥失败。请刷新页面重试。</p>';
+      }
+    }
+    
+    // 删除API密钥
+    async function deleteKey(name) {
+      if (!confirm(\`确定要删除密钥 "\${name}" 吗？\`)) return;
+      
+      try {
+        const response = await fetch(\`\${apiBasePath}/admin/keys/\${name}\`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': \`Bearer \${authToken}\`
+          }
+        });
+        
+        if (response.status === 401) {
+          localStorage.removeItem('cloudrouter_auth_token');
+          showAuthModal();
+          return;
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('密钥删除成功');
+          loadKeys();
+        } else {
+          alert(\`删除失败: \${result.error}\`);
+        }
+      } catch (error) {
+        console.error('删除API密钥失败', error);
+        alert('删除API密钥失败。请刷新页面重试。');
+      }
+    }
+    
+    // 添加API密钥
+    async function addKey(name, value) {
+      try {
+        const response = await fetch(\`\${apiBasePath}/admin/keys\`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': \`Bearer \${authToken}\`
+          },
+          body: JSON.stringify({ name, value })
+        });
+        
+        if (response.status === 401) {
+          localStorage.removeItem('cloudrouter_auth_token');
+          showAuthModal();
+          return;
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('密钥添加成功');
+          document.getElementById('addKeyModal').style.display = 'none';
+          document.getElementById('addKeyForm').reset();
+          loadKeys();
+        } else {
+          alert(\`添加失败: \${result.error}\`);
+        }
+      } catch (error) {
+        console.error('添加API密钥失败', error);
+        alert('添加API密钥失败。请刷新页面重试。');
+      }
+    }
+    
+    // 切换标签页
+    function openTab(evt, tabName) {
+      const tabcontent = document.getElementsByClassName('tabcontent');
+      for (let i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = 'none';
+      }
+      
+      const tablinks = document.getElementsByClassName('tablinks');
+      for (let i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(' active', '');
+      }
+      
+      document.getElementById(tabName).style.display = 'block';
+      evt.currentTarget.className += ' active';
+    }
+    
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 检查身份验证
+      checkAuth();
+      
+      // 身份验证表单提交
+      document.getElementById('authSubmit').addEventListener('click', function() {
+        const authKey = document.getElementById('authKey').value;
+        if (!authKey) return;
+        
+        localStorage.setItem('cloudrouter_auth_token', authKey);
+        authToken = authKey;
+        document.getElementById('authModal').style.display = 'none';
+        loadKeys();
+      });
+      
+      // 添加密钥对话框
+      const addKeyModal = document.getElementById('addKeyModal');
+      document.getElementById('addKeyBtn').addEventListener('click', function() {
+        addKeyModal.style.display = 'block';
+      });
+      
+      document.getElementsByClassName('close')[0].addEventListener('click', function() {
+        addKeyModal.style.display = 'none';
+      });
+      
+      // 添加密钥表单提交
+      document.getElementById('addKeyForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const name = document.getElementById('keyName').value;
+        const value = document.getElementById('keyValue').value;
+        if (!name || !value) return;
+        
+        addKey(name, value);
+      });
+      
+      // 点击其他区域关闭对话框
+      window.addEventListener('click', function(event) {
+        if (event.target === addKeyModal) {
+          addKeyModal.style.display = 'none';
+        }
+      });
+      
+      // 加载API密钥
+      loadKeys();
+    });
+  </script>
+</body>
+</html>`;
   }
   return adminHtml;
 }
