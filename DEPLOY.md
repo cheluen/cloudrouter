@@ -8,7 +8,7 @@
 
 1. 点击下面的按钮开始部署
    
-   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/yourusername/cloudrouter)
+   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter)
 
 2. 登录您的Cloudflare账户
 
@@ -37,7 +37,7 @@
 
 4. 克隆CloudRouter仓库
    ```bash
-   git clone https://github.com/yourusername/cloudrouter.git
+   git clone https://github.com/cheluen/cloudrouter.git
    cd cloudrouter
    ```
 
