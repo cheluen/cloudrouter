@@ -262,7 +262,9 @@ async function getAdminHtml(env) {
             <form id="addTokenForm" style="margin-bottom: 15px;">
                 <label for="tokenName">Token 名称:</label>
                 <input type="text" id="tokenName" placeholder="例如：NextChat Token" required>
-                <button type="submit">生成 Token</button>
+                <label for="customToken">自定义 Token (可选):</label>
+                <input type="text" id="customToken" placeholder="留空则自动生成，或输入自定义 token">
+                <button type="submit">创建 Token</button>
             </form>
             <h4>现有 Token:</h4>
             <table id="tokensTable">
@@ -300,6 +302,7 @@ async function getAdminHtml(env) {
              <p>将以下地址配置到你的 AI 客户端的 API Base URL:</p>
              <code id="apiUrl"></code>
              <p><strong>重要:</strong> 请使用上面生成的客户端 Token 作为 API Key。</p>
+             <p><strong>Token 创建:</strong> 您可以自定义 Token 内容，或留空让系统自动生成。</p>
              <p><strong>安全提示:</strong> 每个 Token 都是唯一的，可以单独启用/禁用。建议为不同的应用创建不同的 Token。</p>
              <p><strong>注意:</strong> 管理员密码仅用于访问此管理面板，不用于 API 调用。</p>
         </div>
@@ -659,15 +662,25 @@ async function getAdminHtml(env) {
         addTokenForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('tokenName').value.trim();
+            const customToken = document.getElementById('customToken').value.trim();
 
             if (!name) {
                 showTokenError('Token 名称不能为空。');
                 return;
             }
 
-            const result = await apiCall('/tokens', 'POST', { name });
+            const requestData = { name };
+            if (customToken) {
+                requestData.token = customToken;
+            }
+
+            const result = await apiCall('/tokens', 'POST', requestData);
             if (result && result.success) {
-                showTokenSuccess('Token 创建成功！Token: ' + result.token.token);
+                if (customToken) {
+                    showTokenSuccess('Token 创建成功！使用了您的自定义 token: ' + result.token.token);
+                } else {
+                    showTokenSuccess('Token 创建成功！自动生成的 token: ' + result.token.token);
+                }
                 addTokenForm.reset();
                 loadTokens();
             }
@@ -860,20 +873,35 @@ router.get('/api/admin/tokens', requireAdminAuth, async (request, env) => {
 router.post('/api/admin/tokens', requireAdminAuth, async (request, env) => {
   await initializeState(env);
   try {
-    const { name } = await request.json();
+    const { name, token } = await request.json();
     if (!name) {
       return new Response(JSON.stringify({ error: 'Token 名称不能为空' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     // 检查是否已存在相同名称的 token
-    if (clientTokens.some(token => token.name === name)) {
+    if (clientTokens.some(t => t.name === name)) {
       return new Response(JSON.stringify({ error: 'Token 名称已存在' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 生成新的 token
+    // 处理 token 值
+    let tokenValue;
+    if (token && token.trim()) {
+      // 使用用户提供的自定义 token
+      tokenValue = token.trim();
+
+      // 检查是否已存在相同的 token 值
+      if (clientTokens.some(t => t.token === tokenValue)) {
+        return new Response(JSON.stringify({ error: 'Token 值已存在，请使用不同的 token' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+    } else {
+      // 自动生成 token
+      tokenValue = generateToken();
+    }
+
+    // 创建新的 token
     const newToken = {
       name,
-      token: generateToken(),
+      token: tokenValue,
       enabled: true,
       createdAt: new Date().toISOString()
     };
