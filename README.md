@@ -2,6 +2,16 @@
 
 CloudRouter 是一个运行在 Cloudflare Workers 或 Pages 上的代理服务，用于管理多个 OpenRouter API 密钥并提供与 OpenAI API 兼容的接口。
 
+## 🎉 项目状态
+
+✅ **项目已修复并可正常运行！**
+
+最新修复内容：
+- 🔧 修复了 `requireAdminAuth` 中间件的返回值问题
+- 🔧 修复了 KV 存储的类型参数错误
+- 📦 更新了 Wrangler 到最新版本 4.23.0
+- ✅ 增强了测试覆盖，确保代码质量
+
 ## 特性
 
 - 🔑 管理多个 OpenRouter API 密钥
@@ -14,7 +24,7 @@ CloudRouter 是一个运行在 Cloudflare Workers 或 Pages 上的代理服务�
 
 ## 一键部署
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/yourusername/cloudrouter)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter)
 
 ## 手动部署
 
@@ -28,7 +38,7 @@ CloudRouter 是一个运行在 Cloudflare Workers 或 Pages 上的代理服务�
 
 1. 克隆仓库
 ```bash
-git clone https://github.com/yourusername/cloudrouter.git
+git clone https://github.com/cheluen/cloudrouter.git
 cd cloudrouter
 ```
 
