@@ -1,5 +1,7 @@
 # CloudRouter
 
+> ✅ **稳定版本** - 完全可用，推荐部署使用
+
 CloudRouter 是一个基于 Cloudflare Workers 的智能 API 路由器，为 OpenRouter API 提供 OpenAI 兼容接口，支持多密钥轮询和故障转移。
 
 ## 功能特性
@@ -50,6 +52,12 @@ npm run deploy
 4. **配置客户端**：
    - API Base URL: `https://your-worker-url.workers.dev/v1`
    - API Key: 使用生成的客户端 Token
+
+## 版本说明
+
+- ✅ **当前版本**：完全可用的稳定版本
+- 🔧 **功能完整**：包含所有核心功能和改进的健康检查
+- 🚀 **推荐使用**：适合生产环境部署
 
 ## 许可证
 
