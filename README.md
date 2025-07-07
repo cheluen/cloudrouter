@@ -24,6 +24,10 @@ CloudRouter 是一个运行在 Cloudflare Workers 或 Pages 上的代理服务�
 
 ## 一键部署
 
+### 选项 1：直接部署（不创建新仓库）
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter&autofork=false)
+
+### 选项 2：Fork 后部署（创建您自己的仓库副本）
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter)
 
 ## 手动部署

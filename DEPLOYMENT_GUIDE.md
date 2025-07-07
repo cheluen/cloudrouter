@@ -6,8 +6,14 @@
 
 ### 方法一：一键部署（推荐）
 
-1. 点击下面的按钮进行一键部署：
-   
+#### 选项 A：直接部署（不创建新仓库）
+1. 点击下面的按钮直接部署：
+
+   [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter&autofork=false)
+
+#### 选项 B：Fork 后部署（创建您自己的仓库副本）
+1. 点击下面的按钮 Fork 后部署：
+
    [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cheluen/cloudrouter)
 
 2. 登录您的 Cloudflare 账户
