@@ -24,7 +24,7 @@ async function initializeState(env) {
   try {
     const [keysData, passwordHashData] = await Promise.all([
       env.ROUTER_KV.get(KV_KEYS.API_KEYS, { type: 'json' }),
-      env.ROUTER_KV.get(KV_KEYS.ADMIN_PASSWORD_HASH, { type: 'string' }),
+      env.ROUTER_KV.get(KV_KEYS.ADMIN_PASSWORD_HASH, { type: 'text' }),
     ]);
 
     if (keysData && Array.isArray(keysData)) {
@@ -89,6 +89,9 @@ async function requireAdminAuth(request, env) {
   // 认证成功，将密码（或标记）附加到请求对象，以便后续路由使用（如果需要）
   request.isAdmin = true;
   request.adminPassword = token; // 存储明文密码以备更改密码时使用
+
+  // 认证成功，返回 undefined 让路由继续处理
+  return undefined;
 }
 
 // 检查 API 密钥健康状态
