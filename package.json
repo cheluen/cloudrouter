@@ -5,10 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "test": "node tests/basic.test.js",
-    "test:integration": "node tests/integration.test.js",
-    "test:all": "npm test && echo '\n开始集成测试...' && npm run test:integration"
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "itty-router": "^4.0.13"
