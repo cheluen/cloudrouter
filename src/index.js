@@ -291,7 +291,7 @@ async function getAdminHtml(env) {
 
     <script>
         const apiUrlBase = window.location.origin;
-        const adminApiBase = \`\${apiUrlBase}/api/admin\`;
+        const adminApiBase = apiUrlBase + '/api/admin';
         let adminPassword = null; // Store password in memory for session
 
         // --- UI Elements ---
@@ -333,7 +333,7 @@ async function getAdminHtml(env) {
                     showLogin(); // Force login if auth needed but no password
                     return null; // Indicate failure
                 }
-                headers['Authorization'] = \`Bearer \${adminPassword}\`;
+                headers['Authorization'] = 'Bearer ' + adminPassword;
             }
 
             const options = { method, headers };
@@ -342,7 +342,7 @@ async function getAdminHtml(env) {
             }
 
             try {
-                const response = await fetch(\`\${adminApiBase}\${endpoint}\`, options);
+                const response = await fetch(adminApiBase + endpoint, options);
                 if (response.status === 401) { // Unauthorized
                     adminPassword = null; // Clear stored password
                     localStorage.removeItem('cloudrouter_admin_password');
@@ -352,7 +352,7 @@ async function getAdminHtml(env) {
                 }
                  if (!response.ok) {
                     const errorData = await response.json().catch(() => ({ error: '未知错误' }));
-                    throw new Error(errorData.error || \`HTTP error! status: \${response.status}\`);
+                    throw new Error(errorData.error || 'HTTP error! status: ' + response.status);
                 }
                 // Handle no content response for DELETE etc.
                  if (response.status === 204) {
@@ -408,11 +408,11 @@ async function getAdminHtml(env) {
                     // If not logged in via stored password, check if setup is needed
                     let statusData = null;
                     try {
-                        const statusResponse = await fetch(\`\${adminApiBase}/auth/status\`);
+                        const statusResponse = await fetch(adminApiBase + '/auth/status');
                         console.log('checkAuthStatus: Status API response status:', statusResponse.status);
                         if (!statusResponse.ok) {
                              // Throw an error if response is not OK (e.g., 500)
-                             throw new Error(\`Status check failed with status: \${statusResponse.status}\`);
+                             throw new Error('Status check failed with status: ' + statusResponse.status);
                         }
                          // Try parsing JSON, might fail if backend returned HTML error page
                         statusData = await statusResponse.json();
@@ -468,7 +468,7 @@ async function getAdminHtml(env) {
         function showMainContent() {
             authSection.classList.add('hidden');
             mainContent.classList.remove('hidden');
-            apiUrlCode.textContent = \`\${apiUrlBase}/v1\`; // Set the API URL display
+            apiUrlCode.textContent = apiUrlBase + '/v1'; // Set the API URL display
             loadApiKeys(); // Load keys when showing main content
         }
 
@@ -534,13 +534,16 @@ async function getAdminHtml(env) {
                 keysList.innerHTML = '<tr><td colspan="3">没有找到 API 密钥。请添加。</td></tr>';
                 return;
             }
-            keysList.innerHTML = keys.map(key => \`
-                <tr>
-                    <td><span class="status \${key.isHealthy === true ? 'healthy' : (key.isHealthy === false ? 'unhealthy' : 'unknown')}"></span> \${key.isHealthy === true ? '可用' : (key.isHealthy === false ? '不可用' : '未知')}</td>
-                    <td>\${escapeHtml(key.name)}</td>
-                    <td><button class="danger" onclick="deleteApiKey('\${escapeHtml(key.name)}')">删除</button></td>
-                </tr>
-            \`).join('');
+            keysList.innerHTML = keys.map(key => {
+                const statusClass = key.isHealthy === true ? 'healthy' : (key.isHealthy === false ? 'unhealthy' : 'unknown');
+                const statusText = key.isHealthy === true ? '可用' : (key.isHealthy === false ? '不可用' : '未知');
+                const escapedName = escapeHtml(key.name);
+                return '<tr>' +
+                    '<td><span class="status ' + statusClass + '"></span> ' + statusText + '</td>' +
+                    '<td>' + escapedName + '</td>' +
+                    '<td><button class="danger" onclick="deleteApiKey(\'' + escapedName + '\')">删除</button></td>' +
+                    '</tr>';
+            }).join('');
         }
 
          // Simple HTML escaping
@@ -580,9 +583,9 @@ async function getAdminHtml(env) {
         });
 
         async function deleteApiKey(name) {
-            if (!confirm(\`确定要删除密钥 "\${name}" 吗？\`)) return;
+            if (!confirm('确定要删除密钥 "' + name + '" 吗？')) return;
 
-            const result = await apiCall(\`/keys/\${encodeURIComponent(name)}\`, 'DELETE');
+            const result = await apiCall('/keys/' + encodeURIComponent(name), 'DELETE');
             if (result && result.success) {
                 showApiKeySuccess('API 密钥删除成功！');
                 loadApiKeys(); // Refresh list
