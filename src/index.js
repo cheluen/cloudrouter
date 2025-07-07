@@ -125,13 +125,47 @@ async function requireAdminAuth(request, env) {
 // 检查 API 密钥健康状态
 async function checkKeyHealth(key) {
   try {
-    const response = await fetch(`${OPENROUTER_BASE_URL}/models`, {
+    // 1. 基础连通性检查 - 获取模型列表
+    const modelsResponse = await fetch(`${OPENROUTER_BASE_URL}/models`, {
       headers: {
         'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
     });
-    return response.ok;
+
+    if (!modelsResponse.ok) {
+      console.log(`密钥 ${key.substring(0, 8)}... 基础检查失败:`, modelsResponse.status);
+      return false;
+    }
+
+    // 2. 实际调用检查 - 测试一个常用的免费模型
+    const testResponse = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'deepseek/deepseek-r1-0528:free',
+        messages: [{ role: 'user', content: 'test' }],
+        max_tokens: 1
+      })
+    });
+
+    // 检查是否是数据策略错误
+    if (!testResponse.ok) {
+      const errorText = await testResponse.text();
+      if (errorText.includes('No endpoints found matching your data policy')) {
+        console.log(`密钥 ${key.substring(0, 8)}... 数据策略限制，无法访问免费模型`);
+        return false;
+      }
+      // 其他错误（如余额不足）也认为是不健康
+      console.log(`密钥 ${key.substring(0, 8)}... 实际调用失败:`, testResponse.status);
+      return false;
+    }
+
+    console.log(`密钥 ${key.substring(0, 8)}... 健康检查通过`);
+    return true;
   } catch (error) {
     console.error('健康检查失败:', error);
     return false;
@@ -253,7 +287,11 @@ async function getAdminHtml(env) {
                     <tr><td colspan="3">正在加载...</td></tr>
                 </tbody>
             </table>
-             <button id="refreshKeysButton">刷新密钥状态</button>
+             <button id="refreshKeysButton">重新加载</button>
+             <button id="checkHealthButton">深度健康检查</button>
+             <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                 💡 <strong>提示</strong>: "深度健康检查" 会实际调用 OpenRouter API 测试每个密钥的可用性，包括数据策略检查。
+             </p>
         </div>
         <div class="container">
             <h3>客户端 Token 管理</h3>
@@ -326,6 +364,7 @@ async function getAdminHtml(env) {
         const tokensList = document.getElementById('tokensList');
         const logoutButton = document.getElementById('logoutButton');
         const refreshKeysButton = document.getElementById('refreshKeysButton');
+        const checkHealthButton = document.getElementById('checkHealthButton');
         const refreshTokensButton = document.getElementById('refreshTokensButton');
         const apiUrlCode = document.getElementById('apiUrl');
         
@@ -540,7 +579,13 @@ async function getAdminHtml(env) {
             }
             keysList.innerHTML = keys.map(key => {
                 const statusClass = key.isHealthy === true ? 'healthy' : (key.isHealthy === false ? 'unhealthy' : 'unknown');
-                const statusText = key.isHealthy === true ? '可用' : (key.isHealthy === false ? '不可用' : '未知');
+                let statusText = key.isHealthy === true ? '✅ 可用' : (key.isHealthy === false ? '❌ 不可用' : '⚪ 未检测');
+
+                // 如果是不可用状态，添加更多信息
+                if (key.isHealthy === false) {
+                    statusText += '<br><small style="color: #999;">可能原因: 数据策略限制、余额不足或密钥无效</small>';
+                }
+
                 const escapedName = escapeHtml(key.name);
                 return '<tr>' +
                     '<td><span class="status ' + statusClass + '"></span> ' + statusText + '</td>' +
@@ -592,6 +637,30 @@ async function getAdminHtml(env) {
         }
         
         refreshKeysButton.addEventListener('click', loadApiKeys);
+
+        // 深度健康检查
+        checkHealthButton.addEventListener('click', async () => {
+            checkHealthButton.disabled = true;
+            checkHealthButton.textContent = '检查中...';
+            keysList.innerHTML = '<tr><td colspan="3">正在进行深度健康检查，请稍候...</td></tr>';
+
+            try {
+                const result = await apiCall('/keys/refresh', 'POST');
+                if (result && result.success) {
+                    showApiKeySuccess(result.message);
+                    renderApiKeys(result.keys);
+                } else {
+                    showApiKeyError('健康检查失败');
+                    loadApiKeys(); // 回退到普通加载
+                }
+            } catch (error) {
+                showApiKeyError('健康检查时发生错误: ' + error.message);
+                loadApiKeys(); // 回退到普通加载
+            } finally {
+                checkHealthButton.disabled = false;
+                checkHealthButton.textContent = '深度健康检查';
+            }
+        });
 
         // Token 管理函数
         async function loadTokens() {
@@ -808,6 +877,39 @@ router.get('/api/admin/keys', requireAdminAuth, async (request, env) => {
   return new Response(JSON.stringify({ success: true, keys: apiKeys }), {
     headers: { 'Content-Type': 'application/json' }
   });
+});
+
+// 手动刷新所有密钥健康状态
+router.post('/api/admin/keys/refresh', requireAdminAuth, async (request, env) => {
+  await initializeState(env);
+  try {
+    console.log('开始手动刷新所有密钥健康状态...');
+    for (let i = 0; i < apiKeys.length; i++) {
+      console.log(`检查密钥 ${i + 1}/${apiKeys.length}: ${apiKeys[i].name}`);
+      apiKeys[i].isHealthy = await checkKeyHealth(apiKeys[i].value);
+    }
+
+    // 保存更新后的状态
+    await env.ROUTER_KV.put(KV_KEYS.API_KEYS, JSON.stringify(apiKeys));
+    lastHealthCheck = Date.now();
+
+    const healthyCount = apiKeys.filter(key => key.isHealthy).length;
+    console.log(`健康检查完成: ${healthyCount}/${apiKeys.length} 个密钥可用`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `健康检查完成: ${healthyCount}/${apiKeys.length} 个密钥可用`,
+      keys: apiKeys
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error("刷新密钥状态失败:", error);
+    return new Response(JSON.stringify({ error: '刷新密钥状态时发生内部错误' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 });
 
 router.post('/api/admin/keys', requireAdminAuth, async (request, env) => {
