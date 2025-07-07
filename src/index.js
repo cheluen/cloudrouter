@@ -8,22 +8,25 @@ let apiKeys = []; // 缓存 API 密钥
 let currentKeyIndex = 0;
 let lastHealthCheck = 0;
 let adminPasswordHash = null; // 缓存管理员密码哈希
+let clientTokens = []; // 缓存客户端访问 token
 
 // OpenRouter API 基础 URL
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const KV_KEYS = {
   API_KEYS: 'api_keys',
   ADMIN_PASSWORD_HASH: 'admin_password_hash',
+  CLIENT_TOKENS: 'client_tokens',
 };
 
 // --- 辅助函数 ---
 
-// 初始化：从 KV 加载 API 密钥和管理员密码哈希
+// 初始化：从 KV 加载 API 密钥、管理员密码哈希和客户端 token
 async function initializeState(env) {
   try {
-    const [keysData, passwordHashData] = await Promise.all([
+    const [keysData, passwordHashData, tokensData] = await Promise.all([
       env.ROUTER_KV.get(KV_KEYS.API_KEYS, { type: 'json' }),
       env.ROUTER_KV.get(KV_KEYS.ADMIN_PASSWORD_HASH, { type: 'text' }),
+      env.ROUTER_KV.get(KV_KEYS.CLIENT_TOKENS, { type: 'json' }),
     ]);
 
     if (keysData && Array.isArray(keysData)) {
@@ -41,10 +44,19 @@ async function initializeState(env) {
       adminPasswordHash = null;
       console.log('未设置管理员密码');
     }
+
+    if (tokensData && Array.isArray(tokensData)) {
+      clientTokens = tokensData;
+      console.log(`已加载 ${clientTokens.length} 个客户端 token`);
+    } else {
+      clientTokens = [];
+      console.log('未找到客户端 token');
+    }
   } catch (error) {
     console.error('初始化状态失败:', error);
     apiKeys = [];
     adminPasswordHash = null;
+    clientTokens = [];
   }
 }
 
@@ -65,6 +77,24 @@ async function verifyPassword(providedPassword, storedHash) {
   }
   const providedHash = await hashPassword(providedPassword);
   return providedHash === storedHash;
+}
+
+// 验证客户端 token
+function verifyClientToken(token) {
+  if (!token || clientTokens.length === 0) {
+    return false;
+  }
+  return clientTokens.some(tokenObj => tokenObj.token === token && tokenObj.enabled);
+}
+
+// 生成随机 token
+function generateToken() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = 'sk-';
+  for (let i = 0; i < 32; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 // 管理员认证中间件
@@ -226,6 +256,32 @@ async function getAdminHtml(env) {
              <button id="refreshKeysButton">刷新密钥状态</button>
         </div>
         <div class="container">
+            <h3>客户端 Token 管理</h3>
+            <div id="tokenError" class="error-message hidden"></div>
+            <div id="tokenSuccess" class="success-message hidden"></div>
+            <form id="addTokenForm" style="margin-bottom: 15px;">
+                <label for="tokenName">Token 名称:</label>
+                <input type="text" id="tokenName" placeholder="例如：NextChat Token" required>
+                <button type="submit">生成 Token</button>
+            </form>
+            <h4>现有 Token:</h4>
+            <table id="tokensTable">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>Token</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tokensList">
+                    <tr><td colspan="5">正在加载...</td></tr>
+                </tbody>
+            </table>
+             <button id="refreshTokensButton">刷新 Token 列表</button>
+        </div>
+        <div class="container">
             <h3>修改管理员密码</h3>
             <div id="changePasswordError" class="error-message hidden"></div>
             <div id="changePasswordSuccess" class="success-message hidden"></div>
@@ -243,7 +299,8 @@ async function getAdminHtml(env) {
              <h3>使用说明</h3>
              <p>将以下地址配置到你的 AI 客户端的 API Base URL:</p>
              <code id="apiUrl"></code>
-             <p>使用任何以 <code>sk-</code> 开头的字符串作为 API Key 进行基础验证。</p>
+             <p><strong>重要:</strong> 请使用上面生成的客户端 Token 作为 API Key。</p>
+             <p><strong>安全提示:</strong> 每个 Token 都是唯一的，可以单独启用/禁用。建议为不同的应用创建不同的 Token。</p>
              <p><strong>注意:</strong> 管理员密码仅用于访问此管理面板，不用于 API 调用。</p>
         </div>
     </div>
@@ -260,10 +317,13 @@ async function getAdminHtml(env) {
         const setupForm = document.getElementById('setupForm');
         const loginForm = document.getElementById('loginForm');
         const addKeyForm = document.getElementById('addKeyForm');
+        const addTokenForm = document.getElementById('addTokenForm');
         const changePasswordForm = document.getElementById('changePasswordForm');
         const keysList = document.getElementById('keysList');
+        const tokensList = document.getElementById('tokensList');
         const logoutButton = document.getElementById('logoutButton');
         const refreshKeysButton = document.getElementById('refreshKeysButton');
+        const refreshTokensButton = document.getElementById('refreshTokensButton');
         const apiUrlCode = document.getElementById('apiUrl');
         
         function showMessage(elementId, message, isError = true) {
@@ -277,6 +337,8 @@ async function getAdminHtml(env) {
         const showLoginError = (msg) => showMessage('loginError', msg);
         const showApiKeyError = (msg) => showMessage('apiKeyError', msg);
         const showApiKeySuccess = (msg) => showMessage('apiKeySuccess', msg, false);
+        const showTokenError = (msg) => showMessage('tokenError', msg);
+        const showTokenSuccess = (msg) => showMessage('tokenSuccess', msg, false);
         const showChangePasswordError = (msg) => showMessage('changePasswordError', msg);
         const showChangePasswordSuccess = (msg) => showMessage('changePasswordSuccess', msg, false);
         
@@ -316,6 +378,7 @@ async function getAdminHtml(env) {
             } catch (error) {
                 console.error('API call failed for ' + method + ' ' + endpoint + ':', error);
                 if (endpoint.startsWith('/keys')) showApiKeyError('操作失败: ' + error.message);
+                else if (endpoint.startsWith('/tokens')) showTokenError('操作失败: ' + error.message);
                 else if (endpoint.startsWith('/auth/change-password')) showChangePasswordError('操作失败: ' + error.message);
                 else showLoginError('操作失败: ' + error.message);
                 return null;
@@ -409,6 +472,7 @@ async function getAdminHtml(env) {
             mainContent.classList.remove('hidden');
             apiUrlCode.textContent = apiUrlBase + '/v1';
             loadApiKeys();
+            loadTokens();
         }
         
         setupForm.addEventListener('submit', async (e) => {
@@ -525,7 +589,92 @@ async function getAdminHtml(env) {
         }
         
         refreshKeysButton.addEventListener('click', loadApiKeys);
-        
+
+        // Token 管理函数
+        async function loadTokens() {
+            tokensList.innerHTML = '<tr><td colspan="5">正在加载 Token...</td></tr>';
+            const result = await apiCall('/tokens');
+            if (result && result.tokens) {
+                renderTokens(result.tokens);
+            } else if (result === null) {
+                 tokensList.innerHTML = '<tr><td colspan="5" style="color: red;">加载 Token 失败，请检查登录状态。</td></tr>';
+            } else {
+                 tokensList.innerHTML = '<tr><td colspan="5">没有找到 Token。</td></tr>';
+            }
+        }
+
+        function renderTokens(tokens) {
+            if (tokens.length === 0) {
+                tokensList.innerHTML = '<tr><td colspan="5">没有找到 Token。请创建。</td></tr>';
+                return;
+            }
+            tokensList.innerHTML = tokens.map(token => {
+                const statusText = token.enabled ? '启用' : '禁用';
+                const statusClass = token.enabled ? 'success-message' : 'error-message';
+                const escapedName = escapeHtml(token.name);
+                const maskedToken = token.token.substring(0, 8) + '...' + token.token.substring(token.token.length - 8);
+                const createdDate = new Date(token.createdAt).toLocaleDateString();
+                const toggleText = token.enabled ? '禁用' : '启用';
+
+                return '<tr>' +
+                    '<td>' + escapedName + '</td>' +
+                    '<td><code style="font-size: 12px;">' + maskedToken + '</code> <button onclick="copyToken(\\'' + token.token + '\\')">复制</button></td>' +
+                    '<td><span class="' + statusClass + '">' + statusText + '</span></td>' +
+                    '<td>' + createdDate + '</td>' +
+                    '<td>' +
+                        '<button onclick="toggleToken(\\'' + escapedName + '\\', ' + !token.enabled + ')">' + toggleText + '</button> ' +
+                        '<button class="danger" onclick="deleteToken(\\'' + escapedName + '\\')">删除</button>' +
+                    '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        async function copyToken(token) {
+            try {
+                await navigator.clipboard.writeText(token);
+                showTokenSuccess('Token 已复制到剪贴板！');
+            } catch (err) {
+                showTokenError('复制失败，请手动复制');
+            }
+        }
+
+        async function toggleToken(name, enabled) {
+            const result = await apiCall('/tokens/' + encodeURIComponent(name), 'PATCH', { enabled });
+            if (result && result.success) {
+                showTokenSuccess('Token 状态更新成功！');
+                loadTokens();
+            }
+        }
+
+        async function deleteToken(name) {
+            if (!confirm('确定要删除 Token "' + name + '" 吗？')) return;
+
+            const result = await apiCall('/tokens/' + encodeURIComponent(name), 'DELETE');
+            if (result && result.success) {
+                showTokenSuccess('Token 删除成功！');
+                loadTokens();
+            }
+        }
+
+        addTokenForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('tokenName').value.trim();
+
+            if (!name) {
+                showTokenError('Token 名称不能为空。');
+                return;
+            }
+
+            const result = await apiCall('/tokens', 'POST', { name });
+            if (result && result.success) {
+                showTokenSuccess('Token 创建成功！Token: ' + result.token.token);
+                addTokenForm.reset();
+                loadTokens();
+            }
+        });
+
+        refreshTokensButton.addEventListener('click', loadTokens);
+
         changePasswordForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const currentPassword = document.getElementById('currentPassword').value;
@@ -700,13 +849,110 @@ router.delete('/api/admin/keys/:name', requireAdminAuth, async (request, env) =>
   }
 });
 
+// --- 客户端 Token 管理 ---
+router.get('/api/admin/tokens', requireAdminAuth, async (request, env) => {
+  await initializeState(env);
+  return new Response(JSON.stringify({ success: true, tokens: clientTokens }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+});
+
+router.post('/api/admin/tokens', requireAdminAuth, async (request, env) => {
+  await initializeState(env);
+  try {
+    const { name } = await request.json();
+    if (!name) {
+      return new Response(JSON.stringify({ error: 'Token 名称不能为空' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // 检查是否已存在相同名称的 token
+    if (clientTokens.some(token => token.name === name)) {
+      return new Response(JSON.stringify({ error: 'Token 名称已存在' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // 生成新的 token
+    const newToken = {
+      name,
+      token: generateToken(),
+      enabled: true,
+      createdAt: new Date().toISOString()
+    };
+    clientTokens.push(newToken);
+
+    // 保存到 KV
+    await env.ROUTER_KV.put(KV_KEYS.CLIENT_TOKENS, JSON.stringify(clientTokens));
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Token 创建成功',
+      token: newToken
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error("创建 Token 失败:", error);
+    return new Response(JSON.stringify({ error: '创建 Token 时发生内部错误' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+});
+
+router.patch('/api/admin/tokens/:name', requireAdminAuth, async (request, env) => {
+  await initializeState(env);
+  try {
+    const { name } = request.params;
+    const { enabled } = await request.json();
+
+    const tokenIndex = clientTokens.findIndex(token => token.name === name);
+    if (tokenIndex === -1) {
+      return new Response(JSON.stringify({ error: 'Token 不存在' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    clientTokens[tokenIndex].enabled = enabled;
+    await env.ROUTER_KV.put(KV_KEYS.CLIENT_TOKENS, JSON.stringify(clientTokens));
+
+    return new Response(JSON.stringify({ success: true, message: 'Token 状态更新成功' }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error("更新 Token 失败:", error);
+    return new Response(JSON.stringify({ error: '更新 Token 时发生内部错误' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+});
+
+router.delete('/api/admin/tokens/:name', requireAdminAuth, async (request, env) => {
+  await initializeState(env);
+  try {
+    const { name } = request.params;
+    const tokenIndex = clientTokens.findIndex(token => token.name === name);
+
+    if (tokenIndex === -1) {
+      return new Response(JSON.stringify({ error: 'Token 不存在' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    clientTokens.splice(tokenIndex, 1);
+    await env.ROUTER_KV.put(KV_KEYS.CLIENT_TOKENS, JSON.stringify(clientTokens));
+
+    return new Response(JSON.stringify({ success: true, message: 'Token 删除成功' }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error("删除 Token 失败:", error);
+    return new Response(JSON.stringify({ error: '删除 Token 时发生内部错误' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+});
+
 // --- OpenAI 兼容 API ---
 router.get('/v1/models', async (request, env) => {
   await initializeState(env);
 
-  // 简单的 API 密钥验证
+  // 客户端 token 验证
   const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer sk-')) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: { message: '未提供认证信息', type: 'invalid_request_error' } }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const token = authHeader.substring(7);
+  if (!verifyClientToken(token)) {
     return new Response(JSON.stringify({ error: { message: '无效的 API 密钥', type: 'invalid_request_error' } }),
       { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
@@ -738,9 +984,15 @@ router.get('/v1/models', async (request, env) => {
 router.post('/v1/chat/completions', async (request, env) => {
   await initializeState(env);
 
-  // 简单的 API 密钥验证
+  // 客户端 token 验证
   const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer sk-')) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: { message: '未提供认证信息', type: 'invalid_request_error' } }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const token = authHeader.substring(7);
+  if (!verifyClientToken(token)) {
     return new Response(JSON.stringify({ error: { message: '无效的 API 密钥', type: 'invalid_request_error' } }),
       { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
