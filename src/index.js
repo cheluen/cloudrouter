@@ -905,7 +905,7 @@ router.post('/api/admin/keys/refresh', requireAdminAuth, async (request, env) =>
     });
   } catch (error) {
     console.error("刷新密钥状态失败:", error);
-    return new Response(JSON.stringify({ error: '刷新密钥状态时发生内部错误' }), {
+    return new Response(JSON.stringify({ error: '刷新密钥状态时发生内部错误，请查看日志' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -1128,27 +1128,64 @@ router.post('/v1/chat/completions', async (request, env) => {
   }
 
   try {
-    const apiKey = await getNextApiKey();
+    let apiKey;
+    try {
+      apiKey = await getNextApiKey();
+    } catch (keyError) {
+      console.warn('getNextApiKey 失败，fallback 到第一个密钥:', keyError.message);
+      apiKey = apiKeys[0].value; // 强 fallback
+    }
     const requestBody = await request.text();
+    console.log(`代理 /v1/chat/completions: 使用密钥 ${apiKey.substring(0, 8)}..., body size: ${requestBody.length}`);
+
+    // 构建上游 headers
+    const upstreamHeaders = new Headers();
+    upstreamHeaders.set('Authorization', `Bearer ${apiKey}`);
+    upstreamHeaders.set('Content-Type', 'application/json');
+
+    request.headers.forEach((value, key) => {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey !== 'authorization' && lowerKey !== 'host' && lowerKey !== 'content-length' && lowerKey !== 'content-type') {
+        upstreamHeaders.set(key, value);
+      }
+    });
 
     const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: upstreamHeaders,
       body: requestBody,
+      signal: AbortSignal.timeout(30000),
     });
 
     const responseData = await response.text();
+    if (!response.ok) {
+      console.error(`上游 /chat/completions 失败 (status: ${response.status}): ${responseData.substring(0, 200)}...`);
+      return new Response(responseData, {  // 直接返回上游 (兼容 OpenAI)
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     return new Response(responseData, {
       status: response.status,
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error) {
-    console.error('聊天完成请求失败:', error);
-    return new Response(JSON.stringify({ error: { message: '聊天完成请求失败', type: 'api_error' } }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } });
+    console.error('代理 /v1/chat/completions 异常:', error);
+    let errorType = 'api_error';
+    let status = 500;
+    if (error.name === 'AbortError') {
+      errorType = 'timeout';
+      status = 504;
+    } else if (error.message.includes('quota') || error.message.includes('rate')) {
+      errorType = 'rate_limit_exceeded';
+      status = 429;
+    } else if (error.message.includes('invalid')) {
+      errorType = 'invalid_request_error';
+      status = 400;
+    }
+    return new Response(JSON.stringify({ error: { message: '代理错误: ' + error.message, type: errorType, code: status } }),
+      { status, headers: { 'Content-Type': 'application/json' } });
   }
 });
 
