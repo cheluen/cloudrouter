@@ -1189,6 +1189,116 @@ router.post('/v1/chat/completions', async (request, env) => {
   }
 });
 
+// 新增端点：/v1/chat/completions/reasoning - 启用推理功能（针对支持的模型，如 Grok 4 Fast）
+router.post('/v1/chat/completions/reasoning', async (request, env) => {
+  await initializeState(env);
+
+  // 客户端 token 验证（与原端点相同）
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: { message: '未提供认证信息', type: 'invalid_request_error' } }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  const token = authHeader.substring(7);
+  if (!verifyClientToken(token)) {
+    return new Response(JSON.stringify({ error: { message: '无效的 API 密钥', type: 'invalid_request_error' } }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  try {
+    let apiKey;
+    try {
+      apiKey = await getNextApiKey();
+    } catch (keyError) {
+      console.warn('getNextApiKey 失败，fallback 到第一个密钥:', keyError.message);
+      apiKey = apiKeys[0]?.value; // 安全 fallback
+      if (!apiKey) {
+        throw new Error('没有可用的 API 密钥');
+      }
+    }
+
+    // 解析请求 body 为 JSON
+    const requestBodyText = await request.text();
+    let requestBody;
+    try {
+      requestBody = JSON.parse(requestBodyText);
+    } catch (parseError) {
+      return new Response(JSON.stringify({ error: { message: '无效的 JSON 请求体', type: 'invalid_request_error' } }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // 检查模型是否支持推理（基于 OpenRouter 文档，Grok 4 Fast 等 xAI 模型支持）
+    const model = requestBody.model || '';
+    const supportedModels = [
+      'xai/grok-4-fast',  // 假设模型 ID，根据 OpenRouter 实际 ID 调整（如 'xai/grok-beta' 或具体变体）
+      // 可以添加更多支持推理的模型 ID
+    ];
+    const isSupported = supportedModels.some(supported => model.includes(supported));
+
+    if (!isSupported) {
+      return new Response(JSON.stringify({ error: { message: `模型 '${model}' 不支持推理功能。请使用支持的模型，如 Grok 4 Fast。`, type: 'invalid_request_error' } }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // 启用推理：添加或覆盖 reasoning 参数
+    requestBody.reasoning = { enabled: true };
+    const modifiedBody = JSON.stringify(requestBody);
+
+    console.log(`代理 /v1/chat/completions/reasoning: 模型 '${model}'，启用推理，使用密钥 ${apiKey.substring(0, 8)}...`);
+
+    // 构建上游 headers（与原端点相同）
+    const upstreamHeaders = new Headers();
+    upstreamHeaders.set('Authorization', `Bearer ${apiKey}`);
+    upstreamHeaders.set('Content-Type', 'application/json');
+
+    request.headers.forEach((value, key) => {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey !== 'authorization' && lowerKey !== 'host' && lowerKey !== 'content-length' && lowerKey !== 'content-type') {
+        upstreamHeaders.set(key, value);
+      }
+    });
+
+    // 转发到 OpenRouter
+    const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: upstreamHeaders,
+      body: modifiedBody,
+      signal: AbortSignal.timeout(30000),
+    });
+
+    const responseData = await response.text();
+    if (!response.ok) {
+      console.error(`上游 /chat/completions/reasoning 失败 (status: ${response.status}): ${responseData.substring(0, 200)}...`);
+      return new Response(responseData, {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(responseData, {
+      status: response.status,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('代理 /v1/chat/completions/reasoning 异常:', error);
+    let errorType = 'api_error';
+    let status = 500;
+    if (error.name === 'AbortError') {
+      errorType = 'timeout';
+      status = 504;
+    } else if (error.message.includes('quota') || error.message.includes('rate')) {
+      errorType = 'rate_limit_exceeded';
+      status = 429;
+    } else if (error.message.includes('invalid')) {
+      errorType = 'invalid_request_error';
+      status = 400;
+    }
+    return new Response(JSON.stringify({ error: { message: '代理错误: ' + error.message, type: errorType, code: status } }),
+      { status, headers: { 'Content-Type': 'application/json' } });
+  }
+});
+
 // --- 主页路由 ---
 router.get('/', async (request, env) => {
   return await getAdminHtml(env);
