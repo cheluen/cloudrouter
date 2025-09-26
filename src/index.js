@@ -1228,16 +1228,18 @@ router.post('/v1/chat/completions/reasoning', async (request, env) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 检查模型是否支持推理（基于 OpenRouter 文档，Grok 4 Fast 等 xAI 模型支持）
+    // 检查模型是否支持推理（基于 OpenRouter 文档，xAI Grok 系列模型支持 reasoning tokens）
     const model = requestBody.model || '';
     const supportedModels = [
-      'xai/grok-4-fast',  // 假设模型 ID，根据 OpenRouter 实际 ID 调整（如 'xai/grok-beta' 或具体变体）
-      // 可以添加更多支持推理的模型 ID
+      'xai/grok-4-fast',
+      'xai/grok-beta',
+      'xai/grok-1.5',
+      // 可以添加更多 xAI 模型 ID；通用检查：如果 model 以 'xai/grok' 开头，通常支持
     ];
-    const isSupported = supportedModels.some(supported => model.includes(supported));
+    const isSupported = supportedModels.some(supported => model.includes(supported)) || model.startsWith('xai/grok');
 
     if (!isSupported) {
-      return new Response(JSON.stringify({ error: { message: `模型 '${model}' 不支持推理功能。请使用支持的模型，如 Grok 4 Fast。`, type: 'invalid_request_error' } }),
+      return new Response(JSON.stringify({ error: { message: `模型 '${model}' 不支持推理功能。请使用 xAI Grok 系列模型，如 'xai/grok-4-fast'、'xai/grok-beta' 或 'xai/grok-1.5'。查询 /v1/models 获取完整列表。`, type: 'invalid_request_error' } }),
         { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
